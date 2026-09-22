@@ -2,15 +2,70 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Control Financiero</title>
+
+    <!-- Metaetiquetas PWA y móviles -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Finanzas">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3135/3135706.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135706.png">
+
+    <!-- Inyección dinámica del Manifest para instalación PWA en Android sin archivos extra -->
+    <script>
+        const manifestObj = {
+            "name": "Mi Control Financiero",
+            "short_name": "Finanzas",
+            "start_url": "./",
+            "display": "standalone",
+            "background_color": "#f8fafc",
+            "theme_color": "#2563eb",
+            "orientation": "portrait",
+            "icons": [
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
+                    "sizes": "192x192",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                },
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestObj)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const linkTag = document.createElement('link');
+        linkTag.rel = 'manifest';
+        linkTag.href = manifestURL;
+        document.head.appendChild(linkTag);
+
+        // Registro de Service Worker liviano en memoria para habilitar el botón "Instalar" de Chrome
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('activate', e => self.clients.claim());
+                self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
+            `;
+            const swBlob = new Blob([swCode], {type: 'text/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+            navigator.serviceWorker.register(swUrl).catch(() => {});
+        }
+    </script>
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js para visualizaciones fluidas -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Cliente oficial de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Fuente Google Inter -->
+    <!-- Fuente Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,13 +85,13 @@
         body {
             background-color: #f8fafc;
             font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
         .chart-container {
             position: relative;
             height: 280px;
             width: 100%;
         }
-        /* Transiciones suaves */
         .collapsible-content {
             transition: max-height 0.3s ease-out, opacity 0.25s ease-out;
             max-height: 0;
@@ -71,7 +126,7 @@
             </button>
         </header>
 
-        <!-- NOTIFICACIÓN TIPO TOAST (Reemplaza a alert) -->
+        <!-- NOTIFICACIÓN TIPO TOAST -->
         <div id="toast" class="hidden transform transition-all duration-300 items-center gap-3 p-4 rounded-xl border text-sm font-medium">
             <span id="toast-icon" class="text-lg"></span>
             <span id="toast-message"></span>
@@ -310,7 +365,6 @@
             const tipoRadio = document.querySelector('input[name="tipo"]:checked').value;
             const selectCat = document.getElementById("select-categoria");
 
-            // Extraer categorías dinámicas presentes en el historial
             const dbCats = todosLosMovimientos
                 .filter(m => (m.tipo || "").toLowerCase() === tipoRadio.toLowerCase())
                 .map(m => (m.categoria || "").toLowerCase());
@@ -349,7 +403,6 @@
             const select = document.getElementById("select-periodo");
             const valorActual = select.value;
 
-            // Extraer meses YYYY-MM
             const meses = Array.from(new Set(
                 todosLosMovimientos
                     .map(m => (m.fecha ? m.fecha.substring(0, 7) : null))
@@ -365,7 +418,6 @@
 
             select.innerHTML = opcionesHTML;
 
-            // Conservar selección previa o autoseleccionar el mes actual
             if (valorActual && select.querySelector(`option[value="${valorActual}"]`)) {
                 select.value = valorActual;
             } else if (meses.includes(mesActualSistema)) {
@@ -382,12 +434,10 @@
         function renderizarPantalla() {
             const periodo = document.getElementById("select-periodo").value;
 
-            // Filtrar movimientos
             const filtrados = (periodo === "Consolidado Total")
                 ? todosLosMovimientos
                 : todosLosMovimientos.filter(m => (m.fecha || "").startsWith(periodo));
 
-            // Totales
             let totalIngresos = 0;
             let totalEgresos = 0;
             const mapEgresosCat = {};
@@ -407,14 +457,12 @@
 
             const disponible = totalIngresos - totalEgresos;
 
-            // Actualizar tarjetas KPI
             document.getElementById("kpi-ingresos").textContent = formatSoles(totalIngresos);
             document.getElementById("kpi-egresos").textContent = formatSoles(totalEgresos);
             const kpiDisp = document.getElementById("kpi-disponible");
             kpiDisp.textContent = formatSoles(disponible);
             kpiDisp.className = "text-2xl font-bold " + (disponible >= 0 ? "text-blue-600" : "text-rose-600");
 
-            // Actualizar barra de progreso
             document.getElementById("bar-egresos-txt").textContent = `Egresos: ${formatSoles(totalEgresos)}`;
             document.getElementById("bar-ingresos-txt").textContent = `Ingresos: ${formatSoles(totalIngresos)}`;
 
@@ -431,10 +479,7 @@
             barraEl.className = `h-full rounded-full transition-all duration-700 ease-out ${totalEgresos > totalIngresos ? 'bg-rose-500' : 'bg-blue-600'}`;
             document.getElementById("progreso-porcentaje").textContent = `${pctConsumido.toFixed(1)}% Consumido`;
 
-            // Actualizar Gráficos
             actualizarGraficos(mapEgresosCat);
-
-            // Actualizar Tabla
             renderizarTabla(filtrados);
         }
 
@@ -495,7 +540,6 @@
             if (chartBarras) chartBarras.destroy();
             const ctxBarras = document.getElementById("graficoBarras").getContext("2d");
             
-            // Ordenar de mayor a menor para las barras
             const combinados = categorias.map((c, i) => ({ cat: c, val: montos[i] }))
                                         .sort((a, b) => b.val - a.val);
 
@@ -611,7 +655,6 @@
                 document.getElementById("input-monto").value = "";
                 document.getElementById("input-detalle").value = "";
                 
-                // Recargar datos para refrescar todo
                 await cargarDatos();
             } catch (err) {
                 mostrarToast("Error al registrar: " + err.message, "error");
@@ -621,7 +664,6 @@
             }
         }
 
-        // Inicializar fecha de hoy por defecto y cargar datos al abrir
         window.addEventListener("DOMContentLoaded", () => {
             const hoy = new Date().toISOString().substring(0, 10);
             document.getElementById("input-fecha").value = hoy;
