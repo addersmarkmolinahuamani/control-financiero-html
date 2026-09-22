@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Control Financiero</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para visualizaciones fluidas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Cliente oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Fuente Google Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+        /* Transiciones suaves */
+        .collapsible-content {
+            transition: max-height 0.3s ease-out, opacity 0.25s ease-out;
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+        }
+        .collapsible-content.open {
+            max-height: 800px;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased p-4 sm:p-6 md:p-8 min-h-screen">
+
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <!-- HEADER -->
+        <header class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shadow-inner">
+                    💳
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Mi Control Financiero</h1>
+                    <p class="text-xs sm:text-sm text-slate-500 font-medium">Gestión de ingresos y egresos en la nube</p>
+                </div>
+            </div>
+            <button id="btn-refresh" onclick="cargarDatos()" class="p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition active:scale-95" title="Actualizar datos">
+                <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- NOTIFICACIÓN TIPO TOAST (Reemplaza a alert) -->
+        <div id="toast" class="hidden transform transition-all duration-300 items-center gap-3 p-4 rounded-xl border text-sm font-medium">
+            <span id="toast-icon" class="text-lg"></span>
+            <span id="toast-message"></span>
+        </div>
+
+        <!-- FORMULARIO DESPLEGABLE DE NUEVO MOVIMIENTO -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <button id="toggle-form-btn" onclick="toggleForm()" class="w-full flex justify-between items-center p-4 sm:p-5 bg-slate-50 hover:bg-slate-100/80 transition text-left">
+                <div class="flex items-center space-x-2.5 text-slate-700 font-semibold">
+                    <span class="text-blue-600 font-bold text-lg leading-none">＋</span>
+                    <span>Ingresar Nuevo Movimiento</span>
+                </div>
+                <svg id="form-chevron" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+
+            <div id="form-container" class="collapsible-content">
+                <form id="movimiento-form" onsubmit="guardarMovimiento(event)" class="p-5 sm:p-6 border-t border-slate-100 space-y-5">
+                    <!-- Selector de tipo (Egreso / Ingreso) -->
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="radio" name="tipo" value="Egreso" checked onchange="actualizarSelectCategorias()" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+                            <span class="font-medium text-slate-700 text-sm">Egreso</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="radio" name="tipo" value="Ingreso" onchange="actualizarSelectCategorias()" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+                            <span class="font-medium text-slate-700 text-sm">Ingreso</span>
+                        </label>
+                    </div>
+
+                    <!-- Campos del formulario -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Fecha</label>
+                            <input type="date" id="input-fecha" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Categoría</label>
+                            <select id="select-categoria" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
+                                <!-- Llenado por JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Monto (S/.)</label>
+                            <input type="number" step="0.01" min="0.01" id="input-monto" required placeholder="0.00" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Detalle</label>
+                            <input type="text" id="input-detalle" placeholder="Ej. Menú, pasaje, cuota..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" id="btn-submit" class="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-200 transition">
+                            Guardar en el acto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- SELECTOR DE PERIODO / MES -->
+        <section class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 gap-3">
+            <div class="flex items-center space-x-2 text-slate-700 font-semibold text-sm">
+                <span class="text-blue-500 text-lg">📅</span>
+                <span>Resumen Financiero</span>
+            </div>
+            <div class="w-full sm:w-auto">
+                <select id="select-periodo" onchange="cambiarPeriodo()" class="w-full sm:w-60 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium transition cursor-pointer">
+                    <option value="Consolidado Total">Consolidado Total</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- TARJETAS DE KPIS -->
+        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Ingresos</p>
+                <p id="kpi-ingresos" class="text-2xl font-bold text-emerald-600">S/ 0.00</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Egresos</p>
+                <p id="kpi-egresos" class="text-2xl font-bold text-rose-600">S/ 0.00</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Disponible</p>
+                <p id="kpi-disponible" class="text-2xl font-bold text-blue-600">S/ 0.00</p>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DE GRÁFICOS (DONA Y BARRA DE CONSUMO) -->
+        <section id="seccion-graficos" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Gráfico de Dona -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                <h3 class="text-base font-bold text-slate-700 mb-4 self-start">Egresos por Categoría</h3>
+                <div class="chart-container flex items-center justify-center">
+                    <canvas id="graficoDona"></canvas>
+                </div>
+            </div>
+
+            <!-- Barra Medidora Egresos vs Ingresos -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                <h3 class="text-base font-bold text-slate-700 mb-6 text-center">Egresos vs Ingresos</h3>
+                <div class="w-full max-w-md mx-auto space-y-4">
+                    <div class="flex justify-between text-xs sm:text-sm font-medium text-slate-600">
+                        <span id="bar-egresos-txt">Egresos: S/ 0.00</span>
+                        <span id="bar-ingresos-txt">Ingresos: S/ 0.00</span>
+                    </div>
+                    <!-- Barra de progreso -->
+                    <div class="w-full bg-emerald-100 rounded-full h-5 overflow-hidden shadow-inner p-0.5">
+                        <div id="progreso-barra" class="h-full rounded-full transition-all duration-700 ease-out bg-blue-600" style="width: 0%;"></div>
+                    </div>
+                    <p id="progreso-porcentaje" class="text-center text-xs sm:text-sm font-bold text-slate-500">
+                        0.0% Consumido
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- GRÁFICO DE BARRAS POR CATEGORÍA -->
+        <section id="seccion-barras" class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 class="text-base font-bold text-slate-700 mb-4">Total de Egresos por Categoría</h3>
+            <div class="chart-container">
+                <canvas id="graficoBarras"></canvas>
+            </div>
+        </section>
+
+        <!-- TABLA DE MOVIMIENTOS RECIENTES -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-base font-bold text-slate-700">Movimientos del Periodo</h3>
+                <span id="badge-total-filas" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">0 registros</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-100">
+                        <tr>
+                            <th class="px-5 py-3.5">Fecha</th>
+                            <th class="px-5 py-3.5">Tipo</th>
+                            <th class="px-5 py-3.5">Categoría</th>
+                            <th class="px-5 py-3.5">Detalle</th>
+                            <th class="px-5 py-3.5 text-right">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-cuerpo" class="divide-y divide-slate-50 text-slate-700">
+                        <!-- Llenado dinámicamente -->
+                    </tbody>
+                </table>
+                <div id="estado-vacio" class="hidden py-12 text-center text-slate-400 text-sm">
+                    No hay movimientos registrados para este periodo.
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = "https://uylnumfofwykwjamwtwk.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_-F-3L3EmsN2DGdQ3xLvKgQ_0_DFq1CY";
+        const clientSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Diccionario de meses
+        const NOMBRES_MESES = {
+            "01": "enero", "02": "febrero", "03": "marzo", "04": "abril",
+            "05": "mayo", "06": "junio", "07": "julio", "08": "agosto",
+            "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre"
+        };
+
+        const baseEgresos = ["ana", "casa", "comida", "cuotas", "educación", "gustos", "movilidad", "padres", "salud", "trabajo", "vestimenta", "otros"];
+        const baseIngresos = ["sunass", "cas", "gratificación", "cobro de deuda", "otros"];
+        const COLORES_PALETA = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16', '#0ea5e9', '#d946ef'];
+
+        let todosLosMovimientos = [];
+        let chartDona = null;
+        let chartBarras = null;
+
+        function formatSoles(monto) {
+            return "S/ " + Number(monto).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatNombreMes(codigo) {
+            if (codigo === "Consolidado Total") return codigo;
+            try {
+                const [anio, mes] = codigo.split("-");
+                const nom = NOMBRES_MESES[mes] || mes;
+                return nom.charAt(0).toUpperCase() + nom.slice(1) + " " + anio;
+            } catch {
+                return codigo;
+            }
+        }
+
+        function capitalize(str) {
+            if (!str) return "";
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
+
+        function mostrarToast(mensaje, tipo = "success") {
+            const toast = document.getElementById("toast");
+            const icon = document.getElementById("toast-icon");
+            const msg = document.getElementById("toast-message");
+
+            toast.className = "flex transform transition-all duration-300 items-center gap-3 p-4 rounded-xl border text-sm font-medium";
+            if (tipo === "success") {
+                toast.classList.add("bg-emerald-50", "text-emerald-800", "border-emerald-200");
+                icon.textContent = "✅";
+            } else {
+                toast.classList.add("bg-rose-50", "text-rose-800", "border-rose-200");
+                icon.textContent = "⚠️";
+            }
+
+            msg.textContent = mensaje;
+            toast.classList.remove("hidden");
+
+            setTimeout(() => {
+                toast.classList.add("hidden");
+            }, 3500);
+        }
+
+        function toggleForm() {
+            const form = document.getElementById("form-container");
+            const chevron = document.getElementById("form-chevron");
+            const isOpen = form.classList.contains("open");
+
+            if (isOpen) {
+                form.classList.remove("open");
+                chevron.classList.remove("rotate-180");
+            } else {
+                form.classList.add("open");
+                chevron.classList.add("rotate-180");
+            }
+        }
+
+        function actualizarSelectCategorias() {
+            const tipoRadio = document.querySelector('input[name="tipo"]:checked').value;
+            const selectCat = document.getElementById("select-categoria");
+
+            // Extraer categorías dinámicas presentes en el historial
+            const dbCats = todosLosMovimientos
+                .filter(m => (m.tipo || "").toLowerCase() === tipoRadio.toLowerCase())
+                .map(m => (m.categoria || "").toLowerCase());
+
+            const baseList = tipoRadio === "Egreso" ? baseEgresos : baseIngresos;
+            const unionUnica = Array.from(new Set([...baseList, ...dbCats])).filter(Boolean);
+            unionUnica.sort();
+
+            selectCat.innerHTML = unionUnica.map(c => `<option value="${capitalize(c)}">${capitalize(c)}</option>`).join("");
+        }
+
+        async function cargarDatos() {
+            const icon = document.getElementById("refresh-icon");
+            icon.classList.add("animate-spin");
+
+            try {
+                const { data, error } = await clientSupabase
+                    .from("movimientos")
+                    .select("*")
+                    .order("fecha", { ascending: false });
+
+                if (error) throw error;
+
+                todosLosMovimientos = data || [];
+                actualizarFiltroPeriodos();
+                actualizarSelectCategorias();
+                renderizarPantalla();
+            } catch (err) {
+                mostrarToast("Error al conectar con la base de datos: " + err.message, "error");
+            } finally {
+                icon.classList.remove("animate-spin");
+            }
+        }
+
+        function actualizarFiltroPeriodos() {
+            const select = document.getElementById("select-periodo");
+            const valorActual = select.value;
+
+            // Extraer meses YYYY-MM
+            const meses = Array.from(new Set(
+                todosLosMovimientos
+                    .map(m => (m.fecha ? m.fecha.substring(0, 7) : null))
+                    .filter(Boolean)
+            )).sort().reverse();
+
+            const mesActualSistema = new Date().toISOString().substring(0, 7);
+
+            let opcionesHTML = `<option value="Consolidado Total">Consolidado Total</option>`;
+            meses.forEach(m => {
+                opcionesHTML += `<option value="${m}">${formatNombreMes(m)}</option>`;
+            });
+
+            select.innerHTML = opcionesHTML;
+
+            // Conservar selección previa o autoseleccionar el mes actual
+            if (valorActual && select.querySelector(`option[value="${valorActual}"]`)) {
+                select.value = valorActual;
+            } else if (meses.includes(mesActualSistema)) {
+                select.value = mesActualSistema;
+            } else {
+                select.value = "Consolidado Total";
+            }
+        }
+
+        function cambiarPeriodo() {
+            renderizarPantalla();
+        }
+
+        function renderizarPantalla() {
+            const periodo = document.getElementById("select-periodo").value;
+
+            // Filtrar movimientos
+            const filtrados = (periodo === "Consolidado Total")
+                ? todosLosMovimientos
+                : todosLosMovimientos.filter(m => (m.fecha || "").startsWith(periodo));
+
+            // Totales
+            let totalIngresos = 0;
+            let totalEgresos = 0;
+            const mapEgresosCat = {};
+
+            filtrados.forEach(m => {
+                const monto = parseFloat(m.monto) || 0;
+                const tipo = (m.tipo || "").toLowerCase();
+                const cat = capitalize(m.categoria || "Otros");
+
+                if (tipo === "ingreso") {
+                    totalIngresos += monto;
+                } else if (tipo === "egreso") {
+                    totalEgresos += monto;
+                    mapEgresosCat[cat] = (mapEgresosCat[cat] || 0) + monto;
+                }
+            });
+
+            const disponible = totalIngresos - totalEgresos;
+
+            // Actualizar tarjetas KPI
+            document.getElementById("kpi-ingresos").textContent = formatSoles(totalIngresos);
+            document.getElementById("kpi-egresos").textContent = formatSoles(totalEgresos);
+            const kpiDisp = document.getElementById("kpi-disponible");
+            kpiDisp.textContent = formatSoles(disponible);
+            kpiDisp.className = "text-2xl font-bold " + (disponible >= 0 ? "text-blue-600" : "text-rose-600");
+
+            // Actualizar barra de progreso
+            document.getElementById("bar-egresos-txt").textContent = `Egresos: ${formatSoles(totalEgresos)}`;
+            document.getElementById("bar-ingresos-txt").textContent = `Ingresos: ${formatSoles(totalIngresos)}`;
+
+            let pctConsumido = 0;
+            if (totalIngresos > 0) {
+                pctConsumido = (totalEgresos / totalIngresos) * 100;
+            } else if (totalEgresos > 0) {
+                pctConsumido = 100;
+            }
+
+            const pctBarra = Math.min(pctConsumido, 100);
+            const barraEl = document.getElementById("progreso-barra");
+            barraEl.style.width = `${pctBarra}%`;
+            barraEl.className = `h-full rounded-full transition-all duration-700 ease-out ${totalEgresos > totalIngresos ? 'bg-rose-500' : 'bg-blue-600'}`;
+            document.getElementById("progreso-porcentaje").textContent = `${pctConsumido.toFixed(1)}% Consumido`;
+
+            // Actualizar Gráficos
+            actualizarGraficos(mapEgresosCat);
+
+            // Actualizar Tabla
+            renderizarTabla(filtrados);
+        }
+
+        function actualizarGraficos(mapCategorias) {
+            const categorias = Object.keys(mapCategorias);
+            const montos = Object.values(mapCategorias);
+
+            const secGraficos = document.getElementById("seccion-graficos");
+            const secBarras = document.getElementById("seccion-barras");
+
+            if (categorias.length === 0) {
+                secGraficos.classList.add("opacity-60");
+                secBarras.classList.add("opacity-60");
+            } else {
+                secGraficos.classList.remove("opacity-60");
+                secBarras.classList.remove("opacity-60");
+            }
+
+            // Gráfico de Dona
+            if (chartDona) chartDona.destroy();
+            const ctxDona = document.getElementById("graficoDona").getContext("2d");
+            chartDona = new Chart(ctxDona, {
+                type: 'doughnut',
+                data: {
+                    labels: categorias.length ? categorias : ['Sin datos'],
+                    datasets: [{
+                        data: montos.length ? montos : [1],
+                        backgroundColor: categorias.length ? COLORES_PALETA : ['#e2e8f0'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { family: 'Inter', size: 11 },
+                                color: '#475569'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: S/ ${Number(context.raw).toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Barras
+            if (chartBarras) chartBarras.destroy();
+            const ctxBarras = document.getElementById("graficoBarras").getContext("2d");
+            
+            // Ordenar de mayor a menor para las barras
+            const combinados = categorias.map((c, i) => ({ cat: c, val: montos[i] }))
+                                        .sort((a, b) => b.val - a.val);
+
+            chartBarras = new Chart(ctxBarras, {
+                type: 'bar',
+                data: {
+                    labels: combinados.map(c => c.cat),
+                    datasets: [{
+                        data: combinados.map(c => c.val),
+                        backgroundColor: COLORES_PALETA.slice(0, combinados.length),
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ` S/ ${Number(ctx.raw).toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }
+                        },
+                        y: {
+                            grid: { color: '#f1f5f9' },
+                            ticks: {
+                                callback: function(val) { return 'S/ ' + val; },
+                                font: { family: 'Inter', size: 11 },
+                                color: '#64748b'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderizarTabla(movimientos) {
+            const tbody = document.getElementById("tabla-cuerpo");
+            const estadoVacio = document.getElementById("estado-vacio");
+            const totalFilas = document.getElementById("badge-total-filas");
+
+            totalFilas.textContent = `${movimientos.length} registros`;
+
+            if (movimientos.length === 0) {
+                tbody.innerHTML = "";
+                estadoVacio.classList.remove("hidden");
+                return;
+            }
+
+            estadoVacio.classList.add("hidden");
+
+            tbody.innerHTML = movimientos.slice(0, 25).map(m => {
+                const esIngreso = (m.tipo || "").toLowerCase() === "ingreso";
+                const badgeColor = esIngreso ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700";
+                const fechaStr = m.fecha ? m.fecha.substring(0, 10) : "-";
+
+                return `
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                        <td class="px-5 py-3.5 whitespace-nowrap text-xs text-slate-500 font-medium">${fechaStr}</td>
+                        <td class="px-5 py-3.5 whitespace-nowrap">
+                            <span class="inline-flex px-2 py-0.5 rounded-md text-xs font-bold ${badgeColor}">
+                                ${capitalize(m.tipo)}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5 font-medium text-slate-700 whitespace-nowrap">${capitalize(m.categoria)}</td>
+                        <td class="px-5 py-3.5 text-slate-500 text-xs truncate max-w-xs" title="${m.detalle || ''}">${m.detalle || '-'}</td>
+                        <td class="px-5 py-3.5 text-right font-bold text-slate-800 whitespace-nowrap">${formatSoles(m.monto)}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        async function guardarMovimiento(e) {
+            e.preventDefault();
+
+            const btnSubmit = document.getElementById("btn-submit");
+            const tipo = document.querySelector('input[name="tipo"]:checked').value;
+            const fecha = document.getElementById("input-fecha").value;
+            const categoria = document.getElementById("select-categoria").value;
+            const monto = parseFloat(document.getElementById("input-monto").value);
+            const detalle = document.getElementById("input-detalle").value.trim();
+
+            if (!monto || monto <= 0) {
+                mostrarToast("El monto debe ser mayor a 0", "error");
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = "Guardando...";
+
+            try {
+                const { error } = await clientSupabase
+                    .from("movimientos")
+                    .insert([{
+                        fecha: fecha,
+                        tipo: tipo,
+                        categoria: categoria,
+                        detalle: detalle,
+                        monto: monto
+                    }]);
+
+                if (error) throw error;
+
+                mostrarToast("¡Guardado al instante en la nube!");
+                document.getElementById("input-monto").value = "";
+                document.getElementById("input-detalle").value = "";
+                
+                // Recargar datos para refrescar todo
+                await cargarDatos();
+            } catch (err) {
+                mostrarToast("Error al registrar: " + err.message, "error");
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = "Guardar en el acto";
+            }
+        }
+
+        // Inicializar fecha de hoy por defecto y cargar datos al abrir
+        window.addEventListener("DOMContentLoaded", () => {
+            const hoy = new Date().toISOString().substring(0, 10);
+            document.getElementById("input-fecha").value = hoy;
+            cargarDatos();
+        });
+    </script>
+</body>
+</html>
