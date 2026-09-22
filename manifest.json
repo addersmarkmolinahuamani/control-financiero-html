@@ -1,21 +1,23 @@
 {
+  "id": "/control-financiero-html/",
   "name": "Mi Control Financiero",
   "short_name": "Finanzas",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/control-financiero-html/",
+  "scope": "/control-financiero-html/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
-      "sizes": "512x512",
+      "src": "https://raw.githubusercontent.com/addersmarkmolinahuamani/control-financiero-html/main/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/192/3135/3135706.png",
-      "sizes": "192x192",
+      "src": "https://raw.githubusercontent.com/addersmarkmolinahuamani/control-financiero-html/main/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
