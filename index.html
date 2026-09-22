@@ -40,6 +40,7 @@
 
     <!-- Chart.js para visualizaciones nativas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -89,6 +90,20 @@
 
         const formatearMoneda = (num) => `S/ ${Number(num || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const capitalizar = (str) => (!str ? '' : str.charAt(0).toUpperCase() + str.slice(1).toLowerCase());
+
+        const formatearFecha = (strFecha) => {
+            if (!strFecha) return '-';
+            try {
+                const parte = strFecha.split('T')[0];
+                const [anio, mes, dia] = parte.split('-');
+                if (anio && mes && dia) {
+                    return `${dia}-${mes}-${anio}`;
+                }
+                return parte;
+            } catch {
+                return strFecha;
+            }
+        };
 
         // Componente Icono SVG reutilizable
         const Icon = ({ name, className = "w-5 h-5" }) => {
@@ -210,10 +225,31 @@
                 return ['Consolidado Total', ...unicos];
             }, [movimientos]);
 
-            // Filtrar movimientos según el periodo
+            // Filtrar y ordenar movimientos según el periodo (el más reciente primero)
             const movimientosFiltrados = useMemo(() => {
-                if (periodoSeleccionado === 'Consolidado Total') return movimientos;
-                return movimientos.filter(m => m.fecha?.startsWith(periodoSeleccionado));
+                const filtrados = periodoSeleccionado === 'Consolidado Total'
+                    ? [...movimientos]
+                    : movimientos.filter(m => m.fecha?.startsWith(periodoSeleccionado));
+
+                return filtrados.sort((a, b) => {
+                    // 1. Comparar fecha (la más reciente primero)
+                    const fA = a.fecha ? a.fecha.split('T')[0] : '';
+                    const fB = b.fecha ? b.fecha.split('T')[0] : '';
+                    if (fA !== fB) {
+                        return fB.localeCompare(fA);
+                    }
+                    // 2. A igual fecha, el registro más reciente cargado va primero
+                    if (b.id !== undefined && a.id !== undefined) {
+                        const numA = Number(a.id);
+                        const numB = Number(b.id);
+                        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+                        return String(b.id).localeCompare(String(a.id));
+                    }
+                    if (b.created_at && a.created_at) {
+                        return new Date(b.created_at) - new Date(a.created_at);
+                    }
+                    return 0;
+                });
             }, [movimientos, periodoSeleccionado]);
 
             // Totales e información de gráficos
@@ -292,6 +328,10 @@
                 const colorBorde = isDarkMode ? '#1e293b' : '#ffffff';
                 const colorGrid = isDarkMode ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
 
+                if (window.ChartDataLabels && Chart.registry && !Chart.registry.plugins.get('datalabels')) {
+                    Chart.register(ChartDataLabels);
+                }
+
                 // Gráfico de Dona
                 if (canvasDonaRef.current && resumenCategorias.length > 0) {
                     if (chartDonaInstance.current) chartDonaInstance.current.destroy();
@@ -319,9 +359,18 @@
                                     callbacks: {
                                         label: (context) => ` ${context.label}: S/ ${Number(context.raw).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
                                     }
+                                },
+                                datalabels: {
+                                    color: '#ffffff',
+                                    font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                                    formatter: (value, ctx) => {
+                                        const total = ctx.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                                        const pct = total > 0 ? (value / total) * 100 : 0;
+                                        return pct >= 4 ? `${pct.toFixed(1)}%` : '';
+                                    }
                                 }
                             },
-                            cutout: '65%'
+                            cutout: '58%'
                         }
                     });
                 }
@@ -344,12 +393,23 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
+                            layout: {
+                                padding: { top: 25 }
+                            },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
                                     callbacks: {
                                         label: (context) => ` Total: S/ ${Number(context.raw).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
                                     }
+                                },
+                                datalabels: {
+                                    anchor: 'end',
+                                    align: 'top',
+                                    offset: 4,
+                                    color: colorTexto,
+                                    font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                                    formatter: (value) => `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                 }
                             },
                             scales: {
@@ -358,6 +418,7 @@
                                     ticks: { color: colorTexto, font: { family: 'Plus Jakarta Sans', size: 11 } }
                                 },
                                 y: {
+                                    grace: '15%',
                                     grid: { color: colorGrid },
                                     ticks: {
                                         color: colorTexto,
@@ -641,7 +702,9 @@
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {movimientosFiltrados.slice(0, 25).map((m, idx) => (
                                         <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
-                                            <td className="px-5 py-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400 font-medium">{m.fecha?.split('T')[0] || '-'}</td>
+                                            <td className="px-5 py-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400 font-medium">
+                                                {formatearFecha(m.fecha)}
+                                            </td>
                                             <td className="px-5 py-3.5 whitespace-nowrap">
                                                 <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-bold ${
                                                     m.tipo?.toLowerCase() === 'ingreso'
