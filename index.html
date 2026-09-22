@@ -5,509 +5,430 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Control Financiero</title>
 
-    <!-- Metaetiquetas PWA y móviles -->
+    <!-- Enlace al Manifest físico de la PWA -->
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Finanzas">
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3135/3135706.png">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135706.png">
-
-    <!-- Inyección dinámica del Manifest para instalación PWA en Android sin archivos extra -->
-    <script>
-        const manifestObj = {
-            "name": "Mi Control Financiero",
-            "short_name": "Finanzas",
-            "start_url": "./",
-            "display": "standalone",
-            "background_color": "#f8fafc",
-            "theme_color": "#2563eb",
-            "orientation": "portrait",
-            "icons": [
-                {
-                    "src": "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
-                    "sizes": "192x192",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                },
-                {
-                    "src": "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
-                    "sizes": "512x512",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                }
-            ]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifestObj)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(manifestBlob);
-        const linkTag = document.createElement('link');
-        linkTag.rel = 'manifest';
-        linkTag.href = manifestURL;
-        document.head.appendChild(linkTag);
-
-        // Registro de Service Worker liviano en memoria para habilitar el botón "Instalar" de Chrome
-        if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', e => self.skipWaiting());
-                self.addEventListener('activate', e => self.clients.claim());
-                self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
-            `;
-            const swBlob = new Blob([swCode], {type: 'text/javascript'});
-            const swUrl = URL.createObjectURL(swBlob);
-            navigator.serviceWorker.register(swUrl).catch(() => {});
-        }
-    </script>
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/192/3135/3135706.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/192/3135/3135706.png">
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Cliente oficial de Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Fuente Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
+                    colors: {
+                        primary: '#2563eb',
+                        success: '#059669',
+                        danger: '#e11d48'
                     }
                 }
             }
         }
     </script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f8fafc;
-            font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
-        .chart-container {
-            position: relative;
-            height: 280px;
-            width: 100%;
-        }
-        .collapsible-content {
-            transition: max-height 0.3s ease-out, opacity 0.25s ease-out;
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-        }
-        .collapsible-content.open {
-            max-height: 800px;
-            opacity: 1;
+        .touch-action-manipulation {
+            touch-action: manipulation;
         }
     </style>
 </head>
-<body class="text-slate-800 antialiased p-4 sm:p-6 md:p-8 min-h-screen">
+<body class="text-slate-800 antialiased min-h-screen pb-12">
 
-    <div class="max-w-5xl mx-auto space-y-6">
-        
-        <!-- HEADER -->
-        <header class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-            <div class="flex items-center space-x-4">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+        <!-- Cabecera Principal -->
+        <header class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center space-x-3 sm:space-x-4">
                 <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shadow-inner">
-                    💳
+                    <i class="fa-solid fa-credit-card"></i>
                 </div>
                 <div>
                     <h1 class="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Mi Control Financiero</h1>
-                    <p class="text-xs sm:text-sm text-slate-500 font-medium">Gestión de ingresos y egresos en la nube</p>
+                    <p class="text-xs sm:text-sm text-slate-500 font-medium">Gestión en tiempo real con Supabase</p>
                 </div>
             </div>
-            <button id="btn-refresh" onclick="cargarDatos()" class="p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition active:scale-95" title="Actualizar datos">
-                <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
+            <button id="btnRecargar" onclick="cargarDatos()" title="Recargar datos" class="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition active:scale-95 touch-action-manipulation">
+                <i id="iconoRecarga" class="fa-solid fa-rotate"></i>
             </button>
         </header>
 
-        <!-- NOTIFICACIÓN TIPO TOAST -->
-        <div id="toast" class="hidden transform transition-all duration-300 items-center gap-3 p-4 rounded-xl border text-sm font-medium">
-            <span id="toast-icon" class="text-lg"></span>
-            <span id="toast-message"></span>
-        </div>
+        <!-- Notificaciones Flotantes / Toast -->
+        <div id="alerta" class="hidden rounded-xl p-4 text-sm font-medium transition-all shadow-sm"></div>
 
-        <!-- FORMULARIO DESPLEGABLE DE NUEVO MOVIMIENTO -->
         <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <button id="toggle-form-btn" onclick="toggleForm()" class="w-full flex justify-between items-center p-4 sm:p-5 bg-slate-50 hover:bg-slate-100/80 transition text-left">
-                <div class="flex items-center space-x-2.5 text-slate-700 font-semibold">
-                    <span class="text-blue-600 font-bold text-lg leading-none">＋</span>
-                    <span>Ingresar Nuevo Movimiento</span>
+            <button id="toggleFormBtn" onclick="toggleForm()" class="w-full p-5 bg-slate-50 hover:bg-slate-100/80 transition-colors flex items-center justify-between text-left font-semibold text-slate-700 touch-action-manipulation">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-plus text-blue-600 text-lg"></i>
+                    <span>Ingresar Movimiento</span>
                 </div>
-                <svg id="form-chevron" class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
+                <i id="flechaForm" class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
             </button>
 
-            <div id="form-container" class="collapsible-content">
-                <form id="movimiento-form" onsubmit="guardarMovimiento(event)" class="p-5 sm:p-6 border-t border-slate-100 space-y-5">
-                    <!-- Selector de tipo (Egreso / Ingreso) -->
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer select-none">
-                            <input type="radio" name="tipo" value="Egreso" checked onchange="actualizarSelectCategorias()" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
-                            <span class="font-medium text-slate-700 text-sm">Egreso</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer select-none">
-                            <input type="radio" name="tipo" value="Ingreso" onchange="actualizarSelectCategorias()" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
-                            <span class="font-medium text-slate-700 text-sm">Ingreso</span>
-                        </label>
+            <form id="movimientoForm" onsubmit="guardarMovimiento(event)" class="hidden p-5 sm:p-6 border-t border-slate-100 space-y-5">
+                <!-- Selector de Tipo -->
+                <div class="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-xl">
+                    <label class="flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition touch-action-manipulation" id="labelEgreso">
+                        <input type="radio" name="tipoMov" value="Egreso" checked onchange="actualizarTipoMovimiento()" class="sr-only">
+                        <i class="fa-solid fa-arrow-down text-rose-500 mr-2"></i> Egreso
+                    </label>
+                    <label class="flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition touch-action-manipulation" id="labelIngreso">
+                        <input type="radio" name="tipoMov" value="Ingreso" onchange="actualizarTipoMovimiento()" class="sr-only">
+                        <i class="fa-solid fa-arrow-up text-emerald-500 mr-2"></i> Ingreso
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Fecha</label>
+                        <input type="date" id="inputFecha" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
 
-                    <!-- Campos del formulario -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Fecha</label>
-                            <input type="date" id="input-fecha" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Categoría</label>
-                            <select id="select-categoria" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
-                                <!-- Llenado por JS -->
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Monto (S/.)</label>
-                            <input type="number" step="0.01" min="0.01" id="input-monto" required placeholder="0.00" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Detalle</label>
-                            <input type="text" id="input-detalle" placeholder="Ej. Menú, pasaje, cuota..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none text-sm transition">
-                        </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoría</label>
+                        <select id="selectCategoria" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- Opciones dinámicas -->
+                        </select>
                     </div>
 
-                    <div class="flex justify-end pt-2">
-                        <button type="submit" id="btn-submit" class="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-200 transition">
-                            Guardar en el acto
-                        </button>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Monto (S/.)</label>
+                        <input type="number" id="inputMonto" step="0.01" min="0.01" required placeholder="0.00" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                </form>
-            </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Detalle (Opcional)</label>
+                        <input type="text" id="inputDetalle" placeholder="Ej. Menú, cuota, pasajes..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="submit" id="btnGuardar" class="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-sm shadow-blue-200 transition touch-action-manipulation flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Guardar en el acto</span>
+                    </button>
+                </div>
+            </form>
         </section>
 
-        <!-- SELECTOR DE PERIODO / MES -->
-        <section class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 gap-3">
-            <div class="flex items-center space-x-2 text-slate-700 font-semibold text-sm">
-                <span class="text-blue-500 text-lg">📅</span>
-                <span>Resumen Financiero</span>
+        <!-- Filtro de Periodo -->
+        <section class="flex flex-col sm:flex-row items-center justify-between bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 gap-3">
+            <div class="flex items-center space-x-2 text-slate-700 font-semibold text-sm w-full sm:w-auto">
+                <i class="fa-regular fa-calendar-days text-blue-600"></i>
+                <span>Periodo de Análisis:</span>
             </div>
-            <div class="w-full sm:w-auto">
-                <select id="select-periodo" onchange="cambiarPeriodo()" class="w-full sm:w-60 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium transition cursor-pointer">
-                    <option value="Consolidado Total">Consolidado Total</option>
-                </select>
-            </div>
+            <select id="filtroMes" onchange="renderizarDashboard()" class="w-full sm:w-64 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="Consolidado Total">Consolidado Total</option>
+            </select>
         </section>
 
-        <!-- TARJETAS DE KPIS -->
+        <!-- KPIs Resumen -->
         <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Ingresos</p>
-                <p id="kpi-ingresos" class="text-2xl font-bold text-emerald-600">S/ 0.00</p>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingresos</p>
+                <p id="kpiIngresos" class="text-2xl font-bold text-emerald-600">S/ 0.00</p>
             </div>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Egresos</p>
-                <p id="kpi-egresos" class="text-2xl font-bold text-rose-600">S/ 0.00</p>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Egresos</p>
+                <p id="kpiEgresos" class="text-2xl font-bold text-rose-600">S/ 0.00</p>
             </div>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Disponible</p>
-                <p id="kpi-disponible" class="text-2xl font-bold text-blue-600">S/ 0.00</p>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Disponible</p>
+                <p id="kpiDisponible" class="text-2xl font-bold text-blue-600">S/ 0.00</p>
             </div>
         </section>
 
-        <!-- SECCIÓN DE GRÁFICOS (DONA Y BARRA DE CONSUMO) -->
-        <section id="seccion-graficos" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Gráfico de Dona -->
-            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
-                <h3 class="text-base font-bold text-slate-700 mb-4 self-start">Egresos por Categoría</h3>
-                <div class="chart-container flex items-center justify-center">
-                    <canvas id="graficoDona"></canvas>
+        <!-- Gráficos Analíticos -->
+        <section id="seccionGraficos" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Gráfico de Dona: Categorías de Egreso -->
+                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 text-center">Egresos por Categoría</h2>
+                    <div class="relative h-64 w-full flex items-center justify-center">
+                        <canvas id="graficoDona"></canvas>
+                    </div>
+                </div>
+
+                <!-- Barra Medidora: Egresos vs Ingresos -->
+                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-6 text-center">Egresos vs Ingresos</h2>
+                    <div class="w-full max-w-sm mx-auto space-y-3">
+                        <div class="flex justify-between text-xs font-semibold text-slate-600">
+                            <span id="txtBarraEgresos">Egresos: S/ 0.00</span>
+                            <span id="txtBarraIngresos">Ingresos: S/ 0.00</span>
+                        </div>
+                        <div class="w-full bg-emerald-100 h-4 rounded-full overflow-hidden shadow-inner relative">
+                            <div id="barraProgreso" class="h-full bg-blue-600 rounded-full transition-all duration-700" style="width: 0%"></div>
+                        </div>
+                        <p id="txtPorcentaje" class="text-center text-xs font-bold text-slate-500 pt-1">0% Consumido</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Barra Medidora Egresos vs Ingresos -->
-            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-                <h3 class="text-base font-bold text-slate-700 mb-6 text-center">Egresos vs Ingresos</h3>
-                <div class="w-full max-w-md mx-auto space-y-4">
-                    <div class="flex justify-between text-xs sm:text-sm font-medium text-slate-600">
-                        <span id="bar-egresos-txt">Egresos: S/ 0.00</span>
-                        <span id="bar-ingresos-txt">Ingresos: S/ 0.00</span>
-                    </div>
-                    <!-- Barra de progreso -->
-                    <div class="w-full bg-emerald-100 rounded-full h-5 overflow-hidden shadow-inner p-0.5">
-                        <div id="progreso-barra" class="h-full rounded-full transition-all duration-700 ease-out bg-blue-600" style="width: 0%;"></div>
-                    </div>
-                    <p id="progreso-porcentaje" class="text-center text-xs sm:text-sm font-bold text-slate-500">
-                        0.0% Consumido
-                    </p>
+            <!-- Gráfico de Barras: Totales por Categoría -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Total de Egresos por Categoría</h2>
+                <div class="relative h-64 w-full">
+                    <canvas id="graficoBarras"></canvas>
                 </div>
             </div>
         </section>
 
-        <!-- GRÁFICO DE BARRAS POR CATEGORÍA -->
-        <section id="seccion-barras" class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 class="text-base font-bold text-slate-700 mb-4">Total de Egresos por Categoría</h3>
-            <div class="chart-container">
-                <canvas id="graficoBarras"></canvas>
-            </div>
-        </section>
-
-        <!-- TABLA DE MOVIMIENTOS RECIENTES -->
+        <!-- Historial de Transacciones -->
         <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="text-base font-bold text-slate-700">Movimientos del Periodo</h3>
-                <span id="badge-total-filas" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">0 registros</span>
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Movimientos del Periodo</h2>
+                <span id="contadorRegistros" class="text-xs font-medium text-slate-400">0 movimientos</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-100">
+                    <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
                         <tr>
-                            <th class="px-5 py-3.5">Fecha</th>
-                            <th class="px-5 py-3.5">Tipo</th>
-                            <th class="px-5 py-3.5">Categoría</th>
-                            <th class="px-5 py-3.5">Detalle</th>
-                            <th class="px-5 py-3.5 text-right">Monto</th>
+                            <th class="px-5 py-3">Fecha</th>
+                            <th class="px-5 py-3">Tipo</th>
+                            <th class="px-5 py-3">Categoría</th>
+                            <th class="px-5 py-3">Detalle</th>
+                            <th class="px-5 py-3 text-right">Monto</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-cuerpo" class="divide-y divide-slate-50 text-slate-700">
-                        <!-- Llenado dinámicamente -->
+                    <tbody id="tablaMovimientos" class="divide-y divide-slate-100 text-slate-600">
+                        <!-- Filas dinámicas -->
                     </tbody>
                 </table>
-                <div id="estado-vacio" class="hidden py-12 text-center text-slate-400 text-sm">
-                    No hay movimientos registrados para este periodo.
-                </div>
+            </div>
+            <div id="sinRegistros" class="hidden p-10 text-center text-slate-400 text-sm">
+                <i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300"></i>
+                <p>No hay movimientos registrados para este periodo.</p>
             </div>
         </section>
 
     </div>
 
     <script>
-        // Configuración de Supabase
+        // Credenciales de Supabase
         const SUPABASE_URL = "https://uylnumfofwykwjamwtwk.supabase.co";
         const SUPABASE_KEY = "sb_publishable_-F-3L3EmsN2DGdQ3xLvKgQ_0_DFq1CY";
-        const clientSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Diccionario de meses
         const NOMBRES_MESES = {
             "01": "enero", "02": "febrero", "03": "marzo", "04": "abril",
             "05": "mayo", "06": "junio", "07": "julio", "08": "agosto",
             "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre"
         };
 
-        const baseEgresos = ["ana", "casa", "comida", "cuotas", "educación", "gustos", "movilidad", "padres", "salud", "trabajo", "vestimenta", "otros"];
-        const baseIngresos = ["sunass", "cas", "gratificación", "cobro de deuda", "otros"];
-        const COLORES_PALETA = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16', '#0ea5e9', '#d946ef'];
+        const baseEgresos = ["ana", "casa", "comida", "cuotas", "educación", "gustos", "movilidad", "Padres", "salud", "trabajo", "Vestimenta", "otros"];
+        const baseIngresos = ["Sunass", "CAS", "gratificación", "cobro de deuda", "otros"];
+        const COLORES_HEX = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16', '#0ea5e9', '#d946ef'];
 
-        let todosLosMovimientos = [];
+        let todosMovimientos = [];
         let chartDona = null;
         let chartBarras = null;
 
-        function formatSoles(monto) {
-            return "S/ " + Number(monto).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Función para capitalizar texto
+        function capitalizar(txt) {
+            if (!txt) return '';
+            return txt.charAt(0).toUpperCase() + txt.slice(1);
         }
 
-        function formatNombreMes(codigo) {
-            if (codigo === "Consolidado Total") return codigo;
+        // Formato de moneda peruana
+        function formatoSoles(val) {
+            return 'S/ ' + Number(val).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Formato legible de mes
+        function formatoMesEspanol(cod) {
+            if (cod === "Consolidado Total") return "Consolidado Total";
             try {
-                const [anio, mes] = codigo.split("-");
-                const nom = NOMBRES_MESES[mes] || mes;
-                return nom.charAt(0).toUpperCase() + nom.slice(1) + " " + anio;
+                const [anio, mes] = cod.split("-");
+                return `${capitalizar(NOMBRES_MESES[mes] || mes)} ${anio}`;
             } catch {
-                return codigo;
+                return cod;
             }
         }
 
-        function capitalize(str) {
-            if (!str) return "";
-            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-        }
-
-        function mostrarToast(mensaje, tipo = "success") {
-            const toast = document.getElementById("toast");
-            const icon = document.getElementById("toast-icon");
-            const msg = document.getElementById("toast-message");
-
-            toast.className = "flex transform transition-all duration-300 items-center gap-3 p-4 rounded-xl border text-sm font-medium";
-            if (tipo === "success") {
-                toast.classList.add("bg-emerald-50", "text-emerald-800", "border-emerald-200");
-                icon.textContent = "✅";
-            } else {
-                toast.classList.add("bg-rose-50", "text-rose-800", "border-rose-200");
-                icon.textContent = "⚠️";
-            }
-
-            msg.textContent = mensaje;
-            toast.classList.remove("hidden");
-
-            setTimeout(() => {
-                toast.classList.add("hidden");
-            }, 3500);
+        function mostrarAlerta(msg, esError = false) {
+            const alerta = document.getElementById('alerta');
+            alerta.className = esError 
+                ? 'rounded-xl p-4 text-sm font-medium bg-rose-50 text-rose-700 border border-rose-100 flex items-center space-x-2'
+                : 'rounded-xl p-4 text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center space-x-2';
+            alerta.innerHTML = `<i class="fa-solid ${esError ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> <span>${msg}</span>`;
+            alerta.classList.remove('hidden');
+            setTimeout(() => alerta.classList.add('hidden'), 4000);
         }
 
         function toggleForm() {
-            const form = document.getElementById("form-container");
-            const chevron = document.getElementById("form-chevron");
-            const isOpen = form.classList.contains("open");
-
-            if (isOpen) {
-                form.classList.remove("open");
-                chevron.classList.remove("rotate-180");
+            const form = document.getElementById('movimientoForm');
+            const flecha = document.getElementById('flechaForm');
+            const estaOculto = form.classList.contains('hidden');
+            if (estaOculto) {
+                form.classList.remove('hidden');
+                flecha.classList.add('rotate-180');
             } else {
-                form.classList.add("open");
-                chevron.classList.add("rotate-180");
+                form.classList.add('hidden');
+                flecha.classList.remove('rotate-180');
             }
         }
 
-        function actualizarSelectCategorias() {
-            const tipoRadio = document.querySelector('input[name="tipo"]:checked').value;
-            const selectCat = document.getElementById("select-categoria");
+        function actualizarTipoMovimiento() {
+            const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
+            const labelEgreso = document.getElementById('labelEgreso');
+            const labelIngreso = document.getElementById('labelIngreso');
+            const selectCat = document.getElementById('selectCategoria');
 
-            const dbCats = todosLosMovimientos
-                .filter(m => (m.tipo || "").toLowerCase() === tipoRadio.toLowerCase())
-                .map(m => (m.categoria || "").toLowerCase());
+            if (tipo === 'Egreso') {
+                labelEgreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition bg-white text-slate-800 shadow-sm";
+                labelIngreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition text-slate-500 hover:text-slate-700";
+            } else {
+                labelIngreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition bg-white text-slate-800 shadow-sm";
+                labelEgreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition text-slate-500 hover:text-slate-700";
+            }
 
-            const baseList = tipoRadio === "Egreso" ? baseEgresos : baseIngresos;
-            const unionUnica = Array.from(new Set([...baseList, ...dbCats])).filter(Boolean);
-            unionUnica.sort();
+            // Actualizar opciones de categoría
+            const categorias = obtenerCategoriasPorTipo(tipo);
+            selectCat.innerHTML = categorias.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
 
-            selectCat.innerHTML = unionUnica.map(c => `<option value="${capitalize(c)}">${capitalize(c)}</option>`).join("");
+        function obtenerCategoriasPorTipo(tipo) {
+            const egresosBD = todosMovimientos.filter(m => (m.tipo || '').toLowerCase() === 'egreso').map(m => m.categoria);
+            const ingresosBD = todosMovimientos.filter(m => (m.tipo || '').toLowerCase() === 'ingreso').map(m => m.categoria);
+
+            if (tipo === 'Egreso') {
+                const unicas = Array.from(new Set([...baseEgresos, ...egresosBD])).filter(Boolean).map(capitalizar);
+                return unicas.sort();
+            } else {
+                const unicas = Array.from(new Set([...baseIngresos, ...ingresosBD])).filter(Boolean).map(capitalizar);
+                return unicas.sort();
+            }
         }
 
         async function cargarDatos() {
-            const icon = document.getElementById("refresh-icon");
-            icon.classList.add("animate-spin");
+            const icono = document.getElementById('iconoRecarga');
+            icono.classList.add('fa-spin');
 
             try {
-                const { data, error } = await clientSupabase
-                    .from("movimientos")
-                    .select("*")
-                    .order("fecha", { ascending: false });
+                const resp = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?select=*&order=fecha.desc`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
 
-                if (error) throw error;
+                if (!resp.ok) throw new Error('Error al conectar con la base de datos');
+                todosMovimientos = await resp.json();
 
-                todosLosMovimientos = data || [];
-                actualizarFiltroPeriodos();
-                actualizarSelectCategorias();
-                renderizarPantalla();
+                poblarSelectorPeriodos();
+                actualizarTipoMovimiento();
+                renderizarDashboard();
             } catch (err) {
-                mostrarToast("Error al conectar con la base de datos: " + err.message, "error");
+                mostrarAlerta('Error de lectura: ' + err.message, true);
             } finally {
-                icon.classList.remove("animate-spin");
+                icono.classList.remove('fa-spin');
             }
         }
 
-        function actualizarFiltroPeriodos() {
-            const select = document.getElementById("select-periodo");
-            const valorActual = select.value;
+        function poblarSelectorPeriodos() {
+            const select = document.getElementById('filtroMes');
+            const valorPrevio = select.value;
+            const mesesSet = new Set();
 
-            const meses = Array.from(new Set(
-                todosLosMovimientos
-                    .map(m => (m.fecha ? m.fecha.substring(0, 7) : null))
-                    .filter(Boolean)
-            )).sort().reverse();
-
-            const mesActualSistema = new Date().toISOString().substring(0, 7);
-
-            let opcionesHTML = `<option value="Consolidado Total">Consolidado Total</option>`;
-            meses.forEach(m => {
-                opcionesHTML += `<option value="${m}">${formatNombreMes(m)}</option>`;
+            todosMovimientos.forEach(m => {
+                if (m.fecha && m.fecha.length >= 7) {
+                    mesesSet.add(m.fecha.slice(0, 7));
+                }
             });
 
-            select.innerHTML = opcionesHTML;
+            const meses = Array.from(mesesSet).sort().reverse();
+            let html = `<option value="Consolidado Total">Consolidado Total</option>`;
+            meses.forEach(m => {
+                html += `<option value="${m}">${formatoMesEspanol(m)}</option>`;
+            });
 
-            if (valorActual && select.querySelector(`option[value="${valorActual}"]`)) {
-                select.value = valorActual;
-            } else if (meses.includes(mesActualSistema)) {
-                select.value = mesActualSistema;
-            } else {
-                select.value = "Consolidado Total";
+            select.innerHTML = html;
+
+            const mesActual = new Date().toISOString().slice(0, 7);
+            if (valorPrevio && Array.from(select.options).some(o => o.value === valorPrevio)) {
+                select.value = valorPrevio;
+            } else if (meses.includes(mesActual)) {
+                select.value = mesActual;
             }
         }
 
-        function cambiarPeriodo() {
-            renderizarPantalla();
-        }
+        function renderizarDashboard() {
+            const mesSeleccionado = document.getElementById('filtroMes').value;
+            let filtrados = todosMovimientos;
 
-        function renderizarPantalla() {
-            const periodo = document.getElementById("select-periodo").value;
-
-            const filtrados = (periodo === "Consolidado Total")
-                ? todosLosMovimientos
-                : todosLosMovimientos.filter(m => (m.fecha || "").startsWith(periodo));
+            if (mesSeleccionado !== 'Consolidado Total') {
+                filtrados = todosMovimientos.filter(m => (m.fecha || '').startsWith(mesSeleccionado));
+            }
 
             let totalIngresos = 0;
             let totalEgresos = 0;
-            const mapEgresosCat = {};
+            const egresosPorCat = {};
 
             filtrados.forEach(m => {
                 const monto = parseFloat(m.monto) || 0;
-                const tipo = (m.tipo || "").toLowerCase();
-                const cat = capitalize(m.categoria || "Otros");
+                const tipo = (m.tipo || '').toLowerCase();
+                const cat = capitalizar(m.categoria || 'Otros');
 
-                if (tipo === "ingreso") {
+                if (tipo === 'ingreso') {
                     totalIngresos += monto;
-                } else if (tipo === "egreso") {
+                } else if (tipo === 'egreso') {
                     totalEgresos += monto;
-                    mapEgresosCat[cat] = (mapEgresosCat[cat] || 0) + monto;
+                    egresosPorCat[cat] = (egresosPorCat[cat] || 0) + monto;
                 }
             });
 
             const disponible = totalIngresos - totalEgresos;
 
-            document.getElementById("kpi-ingresos").textContent = formatSoles(totalIngresos);
-            document.getElementById("kpi-egresos").textContent = formatSoles(totalEgresos);
-            const kpiDisp = document.getElementById("kpi-disponible");
-            kpiDisp.textContent = formatSoles(disponible);
-            kpiDisp.className = "text-2xl font-bold " + (disponible >= 0 ? "text-blue-600" : "text-rose-600");
+            // Actualizar KPIs
+            document.getElementById('kpiIngresos').textContent = formatoSoles(totalIngresos);
+            document.getElementById('kpiEgresos').textContent = formatoSoles(totalEgresos);
+            const elDisp = document.getElementById('kpiDisponible');
+            elDisp.textContent = formatoSoles(disponible);
+            elDisp.className = disponible >= 0 ? 'text-2xl font-bold text-blue-600' : 'text-2xl font-bold text-rose-600';
 
-            document.getElementById("bar-egresos-txt").textContent = `Egresos: ${formatSoles(totalEgresos)}`;
-            document.getElementById("bar-ingresos-txt").textContent = `Ingresos: ${formatSoles(totalIngresos)}`;
+            // Actualizar Barra Egresos vs Ingresos
+            document.getElementById('txtBarraEgresos').textContent = `Egresos: ${formatoSoles(totalEgresos)}`;
+            document.getElementById('txtBarraIngresos').textContent = `Ingresos: ${formatoSoles(totalIngresos)}`;
+            const porcentaje = totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : (totalEgresos > 0 ? 100 : 0);
+            const barra = document.getElementById('barraProgreso');
+            barra.style.width = `${Math.min(porcentaje, 100)}%`;
+            barra.className = totalEgresos > totalIngresos 
+                ? 'h-full bg-rose-500 rounded-full transition-all duration-700'
+                : 'h-full bg-blue-600 rounded-full transition-all duration-700';
+            document.getElementById('txtPorcentaje').textContent = `${porcentaje.toFixed(1)}% Consumido`;
 
-            let pctConsumido = 0;
-            if (totalIngresos > 0) {
-                pctConsumido = (totalEgresos / totalIngresos) * 100;
-            } else if (totalEgresos > 0) {
-                pctConsumido = 100;
-            }
-
-            const pctBarra = Math.min(pctConsumido, 100);
-            const barraEl = document.getElementById("progreso-barra");
-            barraEl.style.width = `${pctBarra}%`;
-            barraEl.className = `h-full rounded-full transition-all duration-700 ease-out ${totalEgresos > totalIngresos ? 'bg-rose-500' : 'bg-blue-600'}`;
-            document.getElementById("progreso-porcentaje").textContent = `${pctConsumido.toFixed(1)}% Consumido`;
-
-            actualizarGraficos(mapEgresosCat);
+            renderizarGraficos(egresosPorCat);
             renderizarTabla(filtrados);
         }
 
-        function actualizarGraficos(mapCategorias) {
-            const categorias = Object.keys(mapCategorias);
-            const montos = Object.values(mapCategorias);
+        function renderizarGraficos(egresosPorCat) {
+            const labels = Object.keys(egresosPorCat);
+            const data = Object.values(egresosPorCat);
 
-            const secGraficos = document.getElementById("seccion-graficos");
-            const secBarras = document.getElementById("seccion-barras");
-
-            if (categorias.length === 0) {
-                secGraficos.classList.add("opacity-60");
-                secBarras.classList.add("opacity-60");
-            } else {
-                secGraficos.classList.remove("opacity-60");
-                secBarras.classList.remove("opacity-60");
-            }
-
-            // Gráfico de Dona
+            // Gráfico Dona
             if (chartDona) chartDona.destroy();
-            const ctxDona = document.getElementById("graficoDona").getContext("2d");
+            const ctxDona = document.getElementById('graficoDona').getContext('2d');
             chartDona = new Chart(ctxDona, {
                 type: 'doughnut',
                 data: {
-                    labels: categorias.length ? categorias : ['Sin datos'],
+                    labels: labels,
                     datasets: [{
-                        data: montos.length ? montos : [1],
-                        backgroundColor: categorias.length ? COLORES_PALETA : ['#e2e8f0'],
+                        data: data,
+                        backgroundColor: COLORES_HEX,
                         borderWidth: 2,
                         borderColor: '#ffffff'
                     }]
@@ -515,42 +436,30 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '68%',
+                    cutout: '65%',
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                font: { family: 'Inter', size: 11 },
-                                color: '#475569'
-                            }
-                        },
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    return ` ${context.label}: S/ ${Number(context.raw).toFixed(2)}`;
-                                }
+                                label: (ctx) => ` ${ctx.label}: ${formatoSoles(ctx.raw)}`
                             }
                         }
                     }
                 }
             });
 
-            // Gráfico de Barras
+            // Gráfico Barras
             if (chartBarras) chartBarras.destroy();
-            const ctxBarras = document.getElementById("graficoBarras").getContext("2d");
-            
-            const combinados = categorias.map((c, i) => ({ cat: c, val: montos[i] }))
-                                        .sort((a, b) => b.val - a.val);
-
+            const ctxBarras = document.getElementById('graficoBarras').getContext('2d');
             chartBarras = new Chart(ctxBarras, {
                 type: 'bar',
                 data: {
-                    labels: combinados.map(c => c.cat),
+                    labels: labels,
                     datasets: [{
-                        data: combinados.map(c => c.val),
-                        backgroundColor: COLORES_PALETA.slice(0, combinados.length),
-                        borderRadius: 6
+                        label: 'Egresos',
+                        data: data,
+                        backgroundColor: COLORES_HEX.slice(0, labels.length),
+                        borderRadius: 8
                     }]
                 },
                 options: {
@@ -560,114 +469,110 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(ctx) {
-                                    return ` S/ ${Number(ctx.raw).toFixed(2)}`;
-                                }
+                                label: (ctx) => ` Monto: ${formatoSoles(ctx.raw)}`
                             }
                         }
                     },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }
-                        },
                         y: {
+                            beginAtZero: true,
                             grid: { color: '#f1f5f9' },
-                            ticks: {
-                                callback: function(val) { return 'S/ ' + val; },
-                                font: { family: 'Inter', size: 11 },
-                                color: '#64748b'
-                            }
+                            ticks: { callback: (val) => 'S/' + val }
+                        },
+                        x: {
+                            grid: { display: false }
                         }
                     }
                 }
             });
         }
 
-        function renderizarTabla(movimientos) {
-            const tbody = document.getElementById("tabla-cuerpo");
-            const estadoVacio = document.getElementById("estado-vacio");
-            const totalFilas = document.getElementById("badge-total-filas");
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tablaMovimientos');
+            const sinReg = document.getElementById('sinRegistros');
+            document.getElementById('contadorRegistros').textContent = `${lista.length} movimientos`;
 
-            totalFilas.textContent = `${movimientos.length} registros`;
-
-            if (movimientos.length === 0) {
-                tbody.innerHTML = "";
-                estadoVacio.classList.remove("hidden");
+            if (lista.length === 0) {
+                tbody.innerHTML = '';
+                sinReg.classList.remove('hidden');
                 return;
             }
 
-            estadoVacio.classList.add("hidden");
-
-            tbody.innerHTML = movimientos.slice(0, 25).map(m => {
-                const esIngreso = (m.tipo || "").toLowerCase() === "ingreso";
-                const badgeColor = esIngreso ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700";
-                const fechaStr = m.fecha ? m.fecha.substring(0, 10) : "-";
-
+            sinReg.classList.add('hidden');
+            tbody.innerHTML = lista.slice(0, 30).map(m => {
+                const esIngreso = (m.tipo || '').toLowerCase() === 'ingreso';
+                const fechaStr = m.fecha ? m.fecha.split('T')[0] : '-';
                 return `
-                    <tr class="hover:bg-slate-50/70 transition-colors">
-                        <td class="px-5 py-3.5 whitespace-nowrap text-xs text-slate-500 font-medium">${fechaStr}</td>
+                    <tr class="hover:bg-slate-50/70 transition">
+                        <td class="px-5 py-3.5 whitespace-nowrap text-xs text-slate-500">${fechaStr}</td>
                         <td class="px-5 py-3.5 whitespace-nowrap">
-                            <span class="inline-flex px-2 py-0.5 rounded-md text-xs font-bold ${badgeColor}">
-                                ${capitalize(m.tipo)}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${esIngreso ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                ${capitalizar(m.tipo)}
                             </span>
                         </td>
-                        <td class="px-5 py-3.5 font-medium text-slate-700 whitespace-nowrap">${capitalize(m.categoria)}</td>
-                        <td class="px-5 py-3.5 text-slate-500 text-xs truncate max-w-xs" title="${m.detalle || ''}">${m.detalle || '-'}</td>
-                        <td class="px-5 py-3.5 text-right font-bold text-slate-800 whitespace-nowrap">${formatSoles(m.monto)}</td>
+                        <td class="px-5 py-3.5 font-medium text-slate-700">${capitalizar(m.categoria)}</td>
+                        <td class="px-5 py-3.5 text-slate-400 text-xs truncate max-w-[150px]">${m.detalle || '-'}</td>
+                        <td class="px-5 py-3.5 text-right font-bold text-slate-800">${formatoSoles(m.monto)}</td>
                     </tr>
                 `;
-            }).join("");
+            }).join('');
         }
 
         async function guardarMovimiento(e) {
             e.preventDefault();
+            const btn = document.getElementById('btnGuardar');
+            const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
+            const fecha = document.getElementById('inputFecha').value;
+            const categoria = document.getElementById('selectCategoria').value;
+            const monto = parseFloat(document.getElementById('inputMonto').value);
+            const detalle = document.getElementById('inputDetalle').value.trim();
 
-            const btnSubmit = document.getElementById("btn-submit");
-            const tipo = document.querySelector('input[name="tipo"]:checked').value;
-            const fecha = document.getElementById("input-fecha").value;
-            const categoria = document.getElementById("select-categoria").value;
-            const monto = parseFloat(document.getElementById("input-monto").value);
-            const detalle = document.getElementById("input-detalle").value.trim();
-
-            if (!monto || monto <= 0) {
-                mostrarToast("El monto debe ser mayor a 0", "error");
+            if (monto <= 0) {
+                mostrarAlerta('El monto debe ser mayor a 0', true);
                 return;
             }
 
-            btnSubmit.disabled = true;
-            btnSubmit.textContent = "Guardando...";
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Guardando...</span>`;
 
             try {
-                const { error } = await clientSupabase
-                    .from("movimientos")
-                    .insert([{
-                        fecha: fecha,
-                        tipo: tipo,
-                        categoria: categoria,
-                        detalle: detalle,
-                        monto: monto
-                    }]);
+                const resp = await fetch(`${SUPABASE_URL}/rest/v1/movimientos`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({ fecha, tipo, categoria, detalle, monto })
+                });
 
-                if (error) throw error;
+                if (!resp.ok) throw new Error('No se pudo guardar el registro');
 
-                mostrarToast("¡Guardado al instante en la nube!");
-                document.getElementById("input-monto").value = "";
-                document.getElementById("input-detalle").value = "";
-                
+                document.getElementById('inputMonto').value = '';
+                document.getElementById('inputDetalle').value = '';
+                toggleForm();
+                mostrarAlerta('¡Movimiento guardado con éxito!');
                 await cargarDatos();
             } catch (err) {
-                mostrarToast("Error al registrar: " + err.message, "error");
+                mostrarAlerta('Error: ' + err.message, true);
             } finally {
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = "Guardar en el acto";
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> <span>Guardar en el acto</span>`;
             }
         }
 
-        window.addEventListener("DOMContentLoaded", () => {
-            const hoy = new Date().toISOString().substring(0, 10);
-            document.getElementById("input-fecha").value = hoy;
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('inputFecha').value = new Date().toISOString().split('T')[0];
+            actualizarTipoMovimiento();
             cargarDatos();
+
+            // Registro nativo y limpio del Service Worker físico
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker PWA registrado con éxito:', reg.scope))
+                    .catch(err => console.log('Error al registrar Service Worker:', err));
+            }
         });
     </script>
 </body>
