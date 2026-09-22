@@ -1,579 +1,440 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mi Control Financiero</title>
+import React, { useState, useEffect, useMemo } from 'react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Plus, CreditCard, TrendingUp, TrendingDown, Wallet, Calendar, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Loader2, Sun, Moon } from 'lucide-react';
 
-    <!-- Enlace al Manifest físico de la PWA -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Finanzas">
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/192/3135/3135706.png">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/192/3135/3135706.png">
+const SUPABASE_URL = "https://uylnumfofwykwjamwtwk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-F-3L3EmsN2DGdQ3xLvKgQ_0_DFq1CY";
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#2563eb',
-                        success: '#059669',
-                        danger: '#e11d48'
-                    }
-                }
-            }
+const NOMBRES_MESES = {
+  "01": "enero", "02": "febrero", "03": "marzo", "04": "abril",
+  "05": "mayo", "06": "junio", "07": "julio", "08": "agosto",
+  "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre"
+};
+
+const base_egresos = ["ana", "casa", "comida", "cuotas", "educación", "gustos", "movilidad", "padres", "salud", "trabajo", "vestimenta", "otros"];
+const base_ingresos = ["sunass", "cas", "gratificación", "cobro de deuda", "otros"];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16', '#0ea5e9', '#d946ef'];
+
+const formatoMesEspanol = (codigo) => {
+  if (codigo === "Consolidado Total") return codigo;
+  try {
+    const [anio, mes] = codigo.split("-");
+    return `${NOMBRES_MESES[mes] || mes} ${anio}`;
+  } catch {
+    return codigo;
+  }
+};
+
+const capitalize = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
+const formatCurrency = (value) => `S/ ${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export default function ControlFinanciero() {
+  const [movimientos, setMovimientos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+
+  // Estado de Modo Oscuro
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [tipo, setTipo] = useState('Egreso');
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [categoria, setCategoria] = useState('');
+  const [monto, setMonto] = useState('');
+  const [detalle, setDetalle] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('Consolidado Total');
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?select=*&order=fecha.desc`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
         }
-    </script>
+      });
+      if (!res.ok) throw new Error('Error de conexión con la base de datos');
+      const data = await res.json();
+      setMovimientos(data);
 
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const uniqueMonths = [...new Set(data.map(d => d.fecha?.slice(0, 7)).filter(Boolean))];
+      if (uniqueMonths.includes(currentMonth) && selectedMonth === 'Consolidado Total') {
+         setSelectedMonth(currentMonth);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f8fafc;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .touch-action-manipulation {
-            touch-action: manipulation;
-        }
-    </style>
-</head>
-<body class="text-slate-800 antialiased min-h-screen pb-12">
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
 
-        <!-- Cabecera Principal -->
-        <header class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-100 flex items-center justify-between">
-            <div class="flex items-center space-x-3 sm:space-x-4">
-                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shadow-inner">
-                    <i class="fa-solid fa-credit-card"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Mi Control Financiero</h1>
-                    <p class="text-xs sm:text-sm text-slate-500 font-medium">Gestión en tiempo real con Supabase</p>
-                </div>
+    if (Number(monto) <= 0) {
+      setError('El monto debe ser mayor a 0');
+      return;
+    }
+
+    const payload = { fecha, tipo, categoria, detalle, monto: parseFloat(monto) };
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Error al guardar el registro en la nube');
+      
+      setSuccessMsg('¡Guardado al instante en la nube!');
+      setMonto('');
+      setDetalle('');
+      setIsFormOpen(false);
+      fetchData(); 
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const { catsEgreso, catsIngreso } = useMemo(() => {
+    const egsDB = movimientos.filter(m => m.tipo?.toLowerCase() === 'egreso').map(m => m.categoria?.toLowerCase());
+    const ingsDB = movimientos.filter(m => m.tipo?.toLowerCase() === 'ingreso').map(m => m.categoria?.toLowerCase());
+    return {
+      catsEgreso: [...new Set([...base_egresos, ...egsDB])].filter(Boolean).map(capitalize).sort(),
+      catsIngreso: [...new Set([...base_ingresos, ...ingsDB])].filter(Boolean).map(capitalize).sort()
+    };
+  }, [movimientos]);
+
+  useEffect(() => {
+    if (tipo === 'Egreso') setCategoria(catsEgreso[0] || capitalize(base_egresos[0]));
+    else setCategoria(catsIngreso[0] || capitalize(base_ingresos[0]));
+  }, [tipo, catsEgreso, catsIngreso]);
+
+  const mesesDisponibles = useMemo(() => {
+    const months = movimientos.map(m => m.fecha?.slice(0, 7)).filter(Boolean);
+    return ['Consolidado Total', ...Array.from(new Set(months)).sort().reverse()];
+  }, [movimientos]);
+
+  const dfFiltrado = useMemo(() => {
+    if (selectedMonth === 'Consolidado Total') return movimientos;
+    return movimientos.filter(m => m.fecha?.startsWith(selectedMonth));
+  }, [movimientos, selectedMonth]);
+
+  const { ingresos, egresos, disponible, pieData } = useMemo(() => {
+    let ing = 0; let egr = 0; const egsCats = {};
+    dfFiltrado.forEach(m => {
+      const val = Number(m.monto) || 0;
+      if (m.tipo?.toLowerCase() === 'ingreso') ing += val;
+      else if (m.tipo?.toLowerCase() === 'egreso') {
+        egr += val;
+        const cat = capitalize(m.categoria);
+        egsCats[cat] = (egsCats[cat] || 0) + val;
+      }
+    });
+
+    const pData = Object.entries(egsCats)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    return { ingresos: ing, egresos: egr, disponible: ing - egr, pieData: pData };
+  }, [dfFiltrado]);
+
+  const chartTextColor = isDarkMode ? '#cbd5e1' : '#64748b'; // slate-300 vs slate-500
+  const chartGridColor = isDarkMode ? '#334155' : '#e2e8f0'; // slate-700 vs slate-200
+  const chartTooltipStyle = {
+    backgroundColor: isDarkMode ? '#1e293b' : '#ffffff', // slate-800 vs white
+    borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+    color: isDarkMode ? '#f8fafc' : '#0f172a',
+    borderRadius: '12px',
+    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-300">
+      <div className="max-w-6xl mx-auto space-y-6">
+        
+        <header className="flex items-center justify-between bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors duration-300">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl transition-colors">
+              <CreditCard className="w-8 h-8" />
             </div>
-            <button id="btnRecargar" onclick="cargarDatos()" title="Recargar datos" class="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition active:scale-95 touch-action-manipulation">
-                <i id="iconoRecarga" class="fa-solid fa-rotate"></i>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Mi Control Financiero</h1>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestión de ingresos y egresos en la nube</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            {loading && <Loader2 className="w-6 h-6 animate-spin text-blue-500 dark:text-blue-400" />}
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              title="Alternar Modo Oscuro"
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
+          </div>
         </header>
 
-        <!-- Notificaciones Flotantes / Toast -->
-        <div id="alerta" class="hidden rounded-xl p-4 text-sm font-medium transition-all shadow-sm"></div>
+        {error && (
+          <div className="flex items-center space-x-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-xl border border-red-100 dark:border-red-900/50">
+            <AlertCircle className="w-5 h-5" />
+            <span>{error}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="flex items-center space-x-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+            <CheckCircle2 className="w-5 h-5" />
+            <span>{successMsg}</span>
+          </div>
+        )}
 
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <button id="toggleFormBtn" onclick="toggleForm()" class="w-full p-5 bg-slate-50 hover:bg-slate-100/80 transition-colors flex items-center justify-between text-left font-semibold text-slate-700 touch-action-manipulation">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-circle-plus text-blue-600 text-lg"></i>
-                    <span>Ingresar Movimiento</span>
+        {}
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-all duration-300">
+          <button 
+            onClick={() => setIsFormOpen(!isFormOpen)}
+            className="w-full flex justify-between items-center p-5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+          >
+            <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-200 font-semibold">
+              <Plus className="w-5 h-5 text-blue-500" />
+              <span>Ingresar Movimiento</span>
+            </div>
+            {isFormOpen ? <ChevronUp className="w-5 h-5 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-400 dark:text-slate-500" />}
+          </button>
+          
+          {isFormOpen && (
+            <form onSubmit={handleSubmit} className="p-6 border-t border-slate-100 dark:border-slate-700">
+              <div className="flex space-x-6 mb-6">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="radio" checked={tipo === 'Egreso'} onChange={() => setTipo('Egreso')} className="w-4 h-4 text-blue-600 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600" />
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Egreso</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="radio" checked={tipo === 'Ingreso'} onChange={() => setTipo('Ingreso')} className="w-4 h-4 text-blue-600 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600" />
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Ingreso</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Fecha</label>
+                  <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required 
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" />
                 </div>
-                <i id="flechaForm" class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-200"></i>
-            </button>
-
-            <form id="movimientoForm" onsubmit="guardarMovimiento(event)" class="hidden p-5 sm:p-6 border-t border-slate-100 space-y-5">
-                <!-- Selector de Tipo -->
-                <div class="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-xl">
-                    <label class="flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition touch-action-manipulation" id="labelEgreso">
-                        <input type="radio" name="tipoMov" value="Egreso" checked onchange="actualizarTipoMovimiento()" class="sr-only">
-                        <i class="fa-solid fa-arrow-down text-rose-500 mr-2"></i> Egreso
-                    </label>
-                    <label class="flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition touch-action-manipulation" id="labelIngreso">
-                        <input type="radio" name="tipoMov" value="Ingreso" onchange="actualizarTipoMovimiento()" class="sr-only">
-                        <i class="fa-solid fa-arrow-up text-emerald-500 mr-2"></i> Ingreso
-                    </label>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Categoría</label>
+                  <select value={categoria} onChange={(e) => setCategoria(e.target.value)} 
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    {(tipo === 'Egreso' ? catsEgreso : catsIngreso).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Fecha</label>
-                        <input type="date" id="inputFecha" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoría</label>
-                        <select id="selectCategoria" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <!-- Opciones dinámicas -->
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Monto (S/.)</label>
-                        <input type="number" id="inputMonto" step="0.01" min="0.01" required placeholder="0.00" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Detalle (Opcional)</label>
-                        <input type="text" id="inputDetalle" placeholder="Ej. Menú, cuota, pasajes..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Monto (S/.)</label>
+                  <input type="number" step="0.01" min="0" value={monto} onChange={(e) => setMonto(e.target.value)} required placeholder="0.00"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" />
                 </div>
-
-                <div class="flex justify-end pt-2">
-                    <button type="submit" id="btnGuardar" class="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-sm shadow-blue-200 transition touch-action-manipulation flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <span>Guardar en el acto</span>
-                    </button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Detalle</label>
+                  <input type="text" value={detalle} onChange={(e) => setDetalle(e.target.value)} placeholder="Ej. Menú, pasaje, cuota..."
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" />
                 </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button type="submit" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-sm shadow-blue-200/50 dark:shadow-none transition-all active:scale-95">
+                  Guardar en el acto
+                </button>
+              </div>
             </form>
+          )}
         </section>
 
-        <!-- Filtro de Periodo -->
-        <section class="flex flex-col sm:flex-row items-center justify-between bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 gap-3">
-            <div class="flex items-center space-x-2 text-slate-700 font-semibold text-sm w-full sm:w-auto">
-                <i class="fa-regular fa-calendar-days text-blue-600"></i>
-                <span>Periodo de Análisis:</span>
+        {}
+        <section className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+            <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-200 mb-3 sm:mb-0">
+              <Calendar className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              <span className="font-semibold">Resumen Financiero</span>
             </div>
-            <select id="filtroMes" onchange="renderizarDashboard()" class="w-full sm:w-64 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="Consolidado Total">Consolidado Total</option>
+            <select 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium min-w-[200px]"
+            >
+              {mesesDisponibles.map(m => (
+                <option key={m} value={m}>{formatoMesEspanol(m)}</option>
+              ))}
             </select>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between transition-colors">
+              <div>
+                <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Ingresos</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(ingresos)}</p>
+              </div>
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 dark:text-emerald-400 rounded-xl"><TrendingUp className="w-6 h-6" /></div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between transition-colors">
+              <div>
+                <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Egresos</p>
+                <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{formatCurrency(egresos)}</p>
+              </div>
+              <div className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400 rounded-xl"><TrendingDown className="w-6 h-6" /></div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between transition-colors">
+              <div>
+                <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Disponible</p>
+                <p className={`text-2xl font-bold ${disponible >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {formatCurrency(disponible)}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400 rounded-xl"><Wallet className="w-6 h-6" /></div>
+            </div>
+          </div>
         </section>
 
-        <!-- KPIs Resumen -->
-        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingresos</p>
-                <p id="kpiIngresos" class="text-2xl font-bold text-emerald-600">S/ 0.00</p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Egresos</p>
-                <p id="kpiEgresos" class="text-2xl font-bold text-rose-600">S/ 0.00</p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Disponible</p>
-                <p id="kpiDisponible" class="text-2xl font-bold text-blue-600">S/ 0.00</p>
-            </div>
-        </section>
-
-        <!-- Gráficos Analíticos -->
-        <section id="seccionGraficos" class="space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Gráfico de Dona: Categorías de Egreso -->
-                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 text-center">Egresos por Categoría</h2>
-                    <div class="relative h-64 w-full flex items-center justify-center">
-                        <canvas id="graficoDona"></canvas>
-                    </div>
+        {}
+        {dfFiltrado.length > 0 && egresos > 0 && (
+          <>
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-6 text-center">Egresos por Categoría</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none">
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={chartTooltipStyle} itemStyle={{color: chartTextColor}} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
+              </div>
 
-                <!-- Barra Medidora: Egresos vs Ingresos -->
-                <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-6 text-center">Egresos vs Ingresos</h2>
-                    <div class="w-full max-w-sm mx-auto space-y-3">
-                        <div class="flex justify-between text-xs font-semibold text-slate-600">
-                            <span id="txtBarraEgresos">Egresos: S/ 0.00</span>
-                            <span id="txtBarraIngresos">Ingresos: S/ 0.00</span>
-                        </div>
-                        <div class="w-full bg-emerald-100 h-4 rounded-full overflow-hidden shadow-inner relative">
-                            <div id="barraProgreso" class="h-full bg-blue-600 rounded-full transition-all duration-700" style="width: 0%"></div>
-                        </div>
-                        <p id="txtPorcentaje" class="text-center text-xs font-bold text-slate-500 pt-1">0% Consumido</p>
-                    </div>
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-center transition-colors">
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-8 text-center">Egresos vs Ingresos</h3>
+                <div className="w-full max-w-md mx-auto space-y-4">
+                  <div className="flex justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
+                    <span>Egresos: {formatCurrency(egresos)}</span>
+                    <span>Ingresos: {formatCurrency(ingresos)}</span>
+                  </div>
+                  <div className="relative w-full h-5 bg-emerald-100 dark:bg-emerald-900/40 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ease-out ${egresos > ingresos ? 'bg-rose-500' : 'bg-blue-500'}`}
+                      style={{ width: `${Math.min((egresos / (ingresos || 1)) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="text-center text-sm font-bold text-slate-500 dark:text-slate-400">
+                    {ingresos > 0 ? ((egresos / ingresos) * 100).toFixed(1) : (egresos > 0 ? 100 : 0)}% Consumido
+                  </div>
                 </div>
-            </div>
+              </div>
+            </section>
 
-            <!-- Gráfico de Barras: Totales por Categoría -->
-            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Total de Egresos por Categoría</h2>
-                <div class="relative h-64 w-full">
-                    <canvas id="graficoBarras"></canvas>
-                </div>
-            </div>
+            <section className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-6">Total de Egresos por Categoría</h3>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={pieData} margin={{ top: 10, right: 10, left: 20, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 12 }} angle={-45} textAnchor="end" />
+                    <YAxis tickFormatter={(val) => `S/${val}`} axisLine={false} tickLine={false} tick={{ fill: chartTextColor, fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: isDarkMode ? '#334155' : '#f1f5f9' }} formatter={(value) => formatCurrency(value)} contentStyle={chartTooltipStyle} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {pieData.map((entry, index) => (
+                        <Cell key={`bar-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          </>
+        )}
+
+        {}
+        <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-colors">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Movimientos del Periodo</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-100 dark:border-slate-700">
+                <tr>
+                  <th className="px-6 py-4">Fecha</th>
+                  <th className="px-6 py-4">Tipo</th>
+                  <th className="px-6 py-4">Categoría</th>
+                  <th className="px-6 py-4">Detalle</th>
+                  <th className="px-6 py-4 text-right">Monto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                {dfFiltrado.slice(0, 15).map((mov, i) => (
+                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors text-slate-600 dark:text-slate-300">
+                    <td className="px-6 py-4 whitespace-nowrap">{mov.fecha?.split('T')[0] || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide ${
+                        mov.tipo?.toLowerCase() === 'ingreso' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400'
+                      }`}>
+                        {capitalize(mov.tipo)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium">{capitalize(mov.categoria)}</td>
+                    <td className="px-6 py-4 max-w-[200px] truncate" title={mov.detalle}>{mov.detalle || '-'}</td>
+                    <td className="px-6 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{formatCurrency(mov.monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {dfFiltrado.length === 0 && !loading && (
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400 flex flex-col items-center">
+                <AlertCircle className="w-10 h-10 mb-3 text-slate-300 dark:text-slate-600" />
+                <p>No hay movimientos registrados para {formatoMesEspanol(selectedMonth)}.</p>
+              </div>
+            )}
+          </div>
         </section>
 
-        <!-- Historial de Transacciones -->
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-                <h2 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Movimientos del Periodo</h2>
-                <span id="contadorRegistros" class="text-xs font-medium text-slate-400">0 movimientos</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
-                        <tr>
-                            <th class="px-5 py-3">Fecha</th>
-                            <th class="px-5 py-3">Tipo</th>
-                            <th class="px-5 py-3">Categoría</th>
-                            <th class="px-5 py-3">Detalle</th>
-                            <th class="px-5 py-3 text-right">Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaMovimientos" class="divide-y divide-slate-100 text-slate-600">
-                        <!-- Filas dinámicas -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="sinRegistros" class="hidden p-10 text-center text-slate-400 text-sm">
-                <i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300"></i>
-                <p>No hay movimientos registrados para este periodo.</p>
-            </div>
-        </section>
-
+      </div>
     </div>
-
-    <script>
-        // Credenciales de Supabase
-        const SUPABASE_URL = "https://uylnumfofwykwjamwtwk.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_-F-3L3EmsN2DGdQ3xLvKgQ_0_DFq1CY";
-
-        const NOMBRES_MESES = {
-            "01": "enero", "02": "febrero", "03": "marzo", "04": "abril",
-            "05": "mayo", "06": "junio", "07": "julio", "08": "agosto",
-            "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre"
-        };
-
-        const baseEgresos = ["ana", "casa", "comida", "cuotas", "educación", "gustos", "movilidad", "Padres", "salud", "trabajo", "Vestimenta", "otros"];
-        const baseIngresos = ["Sunass", "CAS", "gratificación", "cobro de deuda", "otros"];
-        const COLORES_HEX = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16', '#0ea5e9', '#d946ef'];
-
-        let todosMovimientos = [];
-        let chartDona = null;
-        let chartBarras = null;
-
-        // Función para capitalizar texto
-        function capitalizar(txt) {
-            if (!txt) return '';
-            return txt.charAt(0).toUpperCase() + txt.slice(1);
-        }
-
-        // Formato de moneda peruana
-        function formatoSoles(val) {
-            return 'S/ ' + Number(val).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        // Formato legible de mes
-        function formatoMesEspanol(cod) {
-            if (cod === "Consolidado Total") return "Consolidado Total";
-            try {
-                const [anio, mes] = cod.split("-");
-                return `${capitalizar(NOMBRES_MESES[mes] || mes)} ${anio}`;
-            } catch {
-                return cod;
-            }
-        }
-
-        function mostrarAlerta(msg, esError = false) {
-            const alerta = document.getElementById('alerta');
-            alerta.className = esError 
-                ? 'rounded-xl p-4 text-sm font-medium bg-rose-50 text-rose-700 border border-rose-100 flex items-center space-x-2'
-                : 'rounded-xl p-4 text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center space-x-2';
-            alerta.innerHTML = `<i class="fa-solid ${esError ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> <span>${msg}</span>`;
-            alerta.classList.remove('hidden');
-            setTimeout(() => alerta.classList.add('hidden'), 4000);
-        }
-
-        function toggleForm() {
-            const form = document.getElementById('movimientoForm');
-            const flecha = document.getElementById('flechaForm');
-            const estaOculto = form.classList.contains('hidden');
-            if (estaOculto) {
-                form.classList.remove('hidden');
-                flecha.classList.add('rotate-180');
-            } else {
-                form.classList.add('hidden');
-                flecha.classList.remove('rotate-180');
-            }
-        }
-
-        function actualizarTipoMovimiento() {
-            const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
-            const labelEgreso = document.getElementById('labelEgreso');
-            const labelIngreso = document.getElementById('labelIngreso');
-            const selectCat = document.getElementById('selectCategoria');
-
-            if (tipo === 'Egreso') {
-                labelEgreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition bg-white text-slate-800 shadow-sm";
-                labelIngreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition text-slate-500 hover:text-slate-700";
-            } else {
-                labelIngreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition bg-white text-slate-800 shadow-sm";
-                labelEgreso.className = "flex items-center justify-center p-2 rounded-lg cursor-pointer font-medium text-sm transition text-slate-500 hover:text-slate-700";
-            }
-
-            // Actualizar opciones de categoría
-            const categorias = obtenerCategoriasPorTipo(tipo);
-            selectCat.innerHTML = categorias.map(c => `<option value="${c}">${c}</option>`).join('');
-        }
-
-        function obtenerCategoriasPorTipo(tipo) {
-            const egresosBD = todosMovimientos.filter(m => (m.tipo || '').toLowerCase() === 'egreso').map(m => m.categoria);
-            const ingresosBD = todosMovimientos.filter(m => (m.tipo || '').toLowerCase() === 'ingreso').map(m => m.categoria);
-
-            if (tipo === 'Egreso') {
-                const unicas = Array.from(new Set([...baseEgresos, ...egresosBD])).filter(Boolean).map(capitalizar);
-                return unicas.sort();
-            } else {
-                const unicas = Array.from(new Set([...baseIngresos, ...ingresosBD])).filter(Boolean).map(capitalizar);
-                return unicas.sort();
-            }
-        }
-
-        async function cargarDatos() {
-            const icono = document.getElementById('iconoRecarga');
-            icono.classList.add('fa-spin');
-
-            try {
-                const resp = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?select=*&order=fecha.desc`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
-                });
-
-                if (!resp.ok) throw new Error('Error al conectar con la base de datos');
-                todosMovimientos = await resp.json();
-
-                poblarSelectorPeriodos();
-                actualizarTipoMovimiento();
-                renderizarDashboard();
-            } catch (err) {
-                mostrarAlerta('Error de lectura: ' + err.message, true);
-            } finally {
-                icono.classList.remove('fa-spin');
-            }
-        }
-
-        function poblarSelectorPeriodos() {
-            const select = document.getElementById('filtroMes');
-            const valorPrevio = select.value;
-            const mesesSet = new Set();
-
-            todosMovimientos.forEach(m => {
-                if (m.fecha && m.fecha.length >= 7) {
-                    mesesSet.add(m.fecha.slice(0, 7));
-                }
-            });
-
-            const meses = Array.from(mesesSet).sort().reverse();
-            let html = `<option value="Consolidado Total">Consolidado Total</option>`;
-            meses.forEach(m => {
-                html += `<option value="${m}">${formatoMesEspanol(m)}</option>`;
-            });
-
-            select.innerHTML = html;
-
-            const mesActual = new Date().toISOString().slice(0, 7);
-            if (valorPrevio && Array.from(select.options).some(o => o.value === valorPrevio)) {
-                select.value = valorPrevio;
-            } else if (meses.includes(mesActual)) {
-                select.value = mesActual;
-            }
-        }
-
-        function renderizarDashboard() {
-            const mesSeleccionado = document.getElementById('filtroMes').value;
-            let filtrados = todosMovimientos;
-
-            if (mesSeleccionado !== 'Consolidado Total') {
-                filtrados = todosMovimientos.filter(m => (m.fecha || '').startsWith(mesSeleccionado));
-            }
-
-            let totalIngresos = 0;
-            let totalEgresos = 0;
-            const egresosPorCat = {};
-
-            filtrados.forEach(m => {
-                const monto = parseFloat(m.monto) || 0;
-                const tipo = (m.tipo || '').toLowerCase();
-                const cat = capitalizar(m.categoria || 'Otros');
-
-                if (tipo === 'ingreso') {
-                    totalIngresos += monto;
-                } else if (tipo === 'egreso') {
-                    totalEgresos += monto;
-                    egresosPorCat[cat] = (egresosPorCat[cat] || 0) + monto;
-                }
-            });
-
-            const disponible = totalIngresos - totalEgresos;
-
-            // Actualizar KPIs
-            document.getElementById('kpiIngresos').textContent = formatoSoles(totalIngresos);
-            document.getElementById('kpiEgresos').textContent = formatoSoles(totalEgresos);
-            const elDisp = document.getElementById('kpiDisponible');
-            elDisp.textContent = formatoSoles(disponible);
-            elDisp.className = disponible >= 0 ? 'text-2xl font-bold text-blue-600' : 'text-2xl font-bold text-rose-600';
-
-            // Actualizar Barra Egresos vs Ingresos
-            document.getElementById('txtBarraEgresos').textContent = `Egresos: ${formatoSoles(totalEgresos)}`;
-            document.getElementById('txtBarraIngresos').textContent = `Ingresos: ${formatoSoles(totalIngresos)}`;
-            const porcentaje = totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : (totalEgresos > 0 ? 100 : 0);
-            const barra = document.getElementById('barraProgreso');
-            barra.style.width = `${Math.min(porcentaje, 100)}%`;
-            barra.className = totalEgresos > totalIngresos 
-                ? 'h-full bg-rose-500 rounded-full transition-all duration-700'
-                : 'h-full bg-blue-600 rounded-full transition-all duration-700';
-            document.getElementById('txtPorcentaje').textContent = `${porcentaje.toFixed(1)}% Consumido`;
-
-            renderizarGraficos(egresosPorCat);
-            renderizarTabla(filtrados);
-        }
-
-        function renderizarGraficos(egresosPorCat) {
-            const labels = Object.keys(egresosPorCat);
-            const data = Object.values(egresosPorCat);
-
-            // Gráfico Dona
-            if (chartDona) chartDona.destroy();
-            const ctxDona = document.getElementById('graficoDona').getContext('2d');
-            chartDona = new Chart(ctxDona, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: COLORES_HEX,
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => ` ${ctx.label}: ${formatoSoles(ctx.raw)}`
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Gráfico Barras
-            if (chartBarras) chartBarras.destroy();
-            const ctxBarras = document.getElementById('graficoBarras').getContext('2d');
-            chartBarras = new Chart(ctxBarras, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Egresos',
-                        data: data,
-                        backgroundColor: COLORES_HEX.slice(0, labels.length),
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => ` Monto: ${formatoSoles(ctx.raw)}`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#f1f5f9' },
-                            ticks: { callback: (val) => 'S/' + val }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderizarTabla(lista) {
-            const tbody = document.getElementById('tablaMovimientos');
-            const sinReg = document.getElementById('sinRegistros');
-            document.getElementById('contadorRegistros').textContent = `${lista.length} movimientos`;
-
-            if (lista.length === 0) {
-                tbody.innerHTML = '';
-                sinReg.classList.remove('hidden');
-                return;
-            }
-
-            sinReg.classList.add('hidden');
-            tbody.innerHTML = lista.slice(0, 30).map(m => {
-                const esIngreso = (m.tipo || '').toLowerCase() === 'ingreso';
-                const fechaStr = m.fecha ? m.fecha.split('T')[0] : '-';
-                return `
-                    <tr class="hover:bg-slate-50/70 transition">
-                        <td class="px-5 py-3.5 whitespace-nowrap text-xs text-slate-500">${fechaStr}</td>
-                        <td class="px-5 py-3.5 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${esIngreso ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                                ${capitalizar(m.tipo)}
-                            </span>
-                        </td>
-                        <td class="px-5 py-3.5 font-medium text-slate-700">${capitalizar(m.categoria)}</td>
-                        <td class="px-5 py-3.5 text-slate-400 text-xs truncate max-w-[150px]">${m.detalle || '-'}</td>
-                        <td class="px-5 py-3.5 text-right font-bold text-slate-800">${formatoSoles(m.monto)}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        async function guardarMovimiento(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnGuardar');
-            const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
-            const fecha = document.getElementById('inputFecha').value;
-            const categoria = document.getElementById('selectCategoria').value;
-            const monto = parseFloat(document.getElementById('inputMonto').value);
-            const detalle = document.getElementById('inputDetalle').value.trim();
-
-            if (monto <= 0) {
-                mostrarAlerta('El monto debe ser mayor a 0', true);
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Guardando...</span>`;
-
-            try {
-                const resp = await fetch(`${SUPABASE_URL}/rest/v1/movimientos`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify({ fecha, tipo, categoria, detalle, monto })
-                });
-
-                if (!resp.ok) throw new Error('No se pudo guardar el registro');
-
-                document.getElementById('inputMonto').value = '';
-                document.getElementById('inputDetalle').value = '';
-                toggleForm();
-                mostrarAlerta('¡Movimiento guardado con éxito!');
-                await cargarDatos();
-            } catch (err) {
-                mostrarAlerta('Error: ' + err.message, true);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> <span>Guardar en el acto</span>`;
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('inputFecha').value = new Date().toISOString().split('T')[0];
-            actualizarTipoMovimiento();
-            cargarDatos();
-
-            // Registro nativo y limpio del Service Worker físico
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker PWA registrado con éxito:', reg.scope))
-                    .catch(err => console.log('Error al registrar Service Worker:', err));
-            }
-        });
-    </script>
-</body>
-</html>
+  );
+}
