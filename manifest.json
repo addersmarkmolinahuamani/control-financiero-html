@@ -1,24 +1,17 @@
 {
-  "id": "/control-financiero-html/",
   "name": "Mi Control Financiero",
   "short_name": "Finanzas",
-  "start_url": "/control-financiero-html/",
-  "scope": "/control-financiero-html/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/addersmarkmolinahuamani/control-financiero-html/main/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://raw.githubusercontent.com/addersmarkmolinahuamani/control-financiero-html/main/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232563eb'/%3E%3Cpath fill='%23ffffff' d='M256 120c-75 0-136 61-136 136s61 136 136 136 136-61 136-136-61-136-136-136zm0 240c-57.4 0-104-46.6-104-104s46.6-104 104-104 104 46.6 104 104-46.6 104-104 104zm16-160h-32v16h-16v32h48v32h-48v16h-16v-16h-16v-32h48v-32h-48v-16h32z'/%3E%3C/svg%3E",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
