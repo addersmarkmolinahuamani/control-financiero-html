@@ -33,6 +33,9 @@
         }
     </script>
 
+    <!-- Supabase JS Client oficial (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <!-- React 18 UMD & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -64,9 +67,13 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // Configuración de Supabase
+        // Configuración y Cliente de Supabase
         const SUPABASE_URL = "https://uylnumfofwykwjamwtwk.supabase.co";
         const SUPABASE_KEY = "sb_publishable_-F-3L3EmsN2DGdQ3xLvKgQ_0_DFq1CY";
+        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+        // Configuración Comercial para Venta de Licencias
+        const WHATSAPP_VENTAS = "51927000936"; 
 
         const NOMBRES_MESES = {
             "01": "enero", "02": "febrero", "03": "marzo", "04": "abril",
@@ -74,8 +81,8 @@
             "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre"
         };
 
-        const BASE_EGRESOS = ["ana", "casa", "comida", "cuotas", "educación", "gustos", "movilidad", "padres", "salud", "trabajo", "vestimenta", "otros"];
-        const BASE_INGRESOS = ["sunass", "cas", "gratificación", "cobro de deuda", "otros"];
+        const BASE_EGRESOS = ["otros"];
+        const BASE_INGRESOS = ["otros"];
         const PALETA_COLORES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1'];
 
         const formatoMesEspanol = (codigo) => {
@@ -123,7 +130,16 @@
                 download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
                 filter: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />,
                 flame: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 010 11.314z" />,
-                trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
+                edit: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
+                wifiOff: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18M10.5 10.5a5 5 0 017.07 0M7 7a9 9 0 0112.73 0M1.4 1.4A13 13 0 0122.6 19.6M12 18h.01" />,
+                chevronLeft: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />,
+                chevronRight: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />,
+                mail: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />,
+                lock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />,
+                logout: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />,
+                user: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
+                key: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             };
             return (
                 <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -133,16 +149,38 @@
         };
 
         function App() {
+            // Tema visual Claro/Oscuro
             const [isDarkMode, setIsDarkMode] = useState(() => {
                 const guardado = localStorage.getItem('app_theme');
                 if (guardado) return guardado === 'dark';
                 return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             });
 
+            // Estado de Autenticación
+            const [session, setSession] = useState(null);
+            const [authCargando, setAuthCargando] = useState(true);
+            const [authEmail, setAuthEmail] = useState('');
+            const [authPassword, setAuthPassword] = useState('');
+            const [authProcesando, setAuthProcesando] = useState(false);
+            const [authError, setAuthError] = useState(null);
+
+            // Modal para que el cliente cambie su contraseña
+            const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false);
+            const [nuevaPassword, setNuevaPassword] = useState('');
+            const [cambiandoPassword, setCambiandoPassword] = useState(false);
+
+            // Datos principales
             const [movimientos, setMovimientos] = useState([]);
-            const [cargando, setCargando] = useState(true);
+            const [cargando, setCargando] = useState(false);
             const [notificacion, setNotificacion] = useState(null);
             const [formAbierto, setFormAbierto] = useState(false);
+
+            // Modo Edición
+            const [editandoId, setEditandoId] = useState(null);
+
+            // Estado de Conexión & Modo Offline
+            const [estaOnline, setEstaOnline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine !== false);
+            const [modoOffline, setModoOffline] = useState(false);
 
             // Campos del formulario
             const [tipo, setTipo] = useState('Egreso');
@@ -152,10 +190,19 @@
             const [detalle, setDetalle] = useState('');
             const [periodoSeleccionado, setPeriodoSeleccionado] = useState('Consolidado Total');
 
-            // Segmentadores y filtros analíticos adicionales
+            // Categorías personalizadas guardadas localmente por usuario
+            const [categoriasPersonalizadas, setCategoriasPersonalizadas] = useState([]);
+            const [creandoNuevaCat, setCreandoNuevaCat] = useState(false);
+            const [nombreNuevaCat, setNombreNuevaCat] = useState('');
+
+            // Segmentadores y filtros analíticos
             const [filtroTipo, setFiltroTipo] = useState('todos'); // 'todos' | 'egreso' | 'ingreso'
             const [filtroCategoria, setFiltroCategoria] = useState('todas');
             const [busquedaTexto, setBusquedaTexto] = useState('');
+
+            // Paginación
+            const [paginaActual, setPaginaActual] = useState(1);
+            const [filasPorPagina, setFilasPorPagina] = useState(25);
 
             // Referencias para gráficos de Chart.js
             const canvasDonaRef = useRef(null);
@@ -174,19 +221,96 @@
                 }
             }, [isDarkMode]);
 
-            // Carga de datos directa a Supabase
+            // Detección de conectividad en tiempo real
+            useEffect(() => {
+                const handleOnline = () => {
+                    setEstaOnline(true);
+                    setModoOffline(false);
+                    mostrarAlerta('Conexión a internet restablecida. Sincronizando...');
+                    if (session) cargarMovimientos();
+                };
+                const handleOffline = () => {
+                    setEstaOnline(false);
+                    setModoOffline(true);
+                    mostrarAlerta('Sin conexión a internet. Funcionando en modo offline.', 'warning');
+                };
+
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+                return () => {
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
+                };
+            }, [session]);
+
+            // Inicialización de la sesión de Supabase Auth
+            useEffect(() => {
+                if (!supabaseClient) {
+                    setAuthCargando(false);
+                    return;
+                }
+
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    setSession(session);
+                    setAuthCargando(false);
+                    if (session?.user) {
+                        vincularRegistrosHistoricos(session.user.id);
+                    }
+                }).catch(() => {
+                    setAuthCargando(false);
+                });
+
+                const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, newSession) => {
+                    setSession(newSession);
+                    setAuthCargando(false);
+                    if (newSession?.user) {
+                        vincularRegistrosHistoricos(newSession.user.id);
+                    }
+                });
+
+                return () => subscription?.unsubscribe?.();
+            }, []);
+
+            // Vincular automáticamente movimientos huérfanos anteriores al usuario logueado
+            const vincularRegistrosHistoricos = async (userId) => {
+                if (!supabaseClient || !userId) return;
+                try {
+                    const { error } = await supabaseClient
+                        .from('movimientos')
+                        .update({ user_id: userId })
+                        .is('user_id', null);
+
+                    if (error) {
+                        console.warn("Nota al vincular movimientos huérfanos:", error.message);
+                    } else {
+                        cargarMovimientos();
+                    }
+                } catch (err) {
+                    console.warn("Error en vinculación:", err);
+                }
+            };
+
+            // Carga de datos de Supabase para el usuario autenticado
             const cargarMovimientos = async () => {
+                if (!supabaseClient || !session?.user) return;
                 setCargando(true);
                 try {
-                    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?select=*&order=fecha.desc`, {
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`
-                        }
-                    });
-                    if (!res.ok) throw new Error("Error en la conexión con Supabase");
-                    const datos = await res.json();
+                    const { data, error } = await supabaseClient
+                        .from('movimientos')
+                        .select('*')
+                        .order('fecha', { ascending: false });
+
+                    if (error) throw error;
+                    const datos = data || [];
                     setMovimientos(datos);
+
+                    // Guardar copia local segura indexada por el usuario
+                    try {
+                        localStorage.setItem(`app_cache_movimientos_${session.user.id}`, JSON.stringify(datos));
+                    } catch (e) {
+                        console.warn("No se pudo cachear en localStorage:", e);
+                    }
+                    setModoOffline(false);
 
                     // Seleccionar mes actual por defecto si existen datos
                     const mesActual = new Date().toISOString().slice(0, 7);
@@ -195,38 +319,130 @@
                         setPeriodoSeleccionado(mesActual);
                     }
                 } catch (err) {
-                    mostrarAlerta(err.message, 'error');
+                    // Fallback a localStorage si falla la conexión (offline)
+                    const claveUsuario = `app_cache_movimientos_${session?.user?.id || 'default'}`;
+                    const copiaLocal = localStorage.getItem(claveUsuario) || localStorage.getItem('app_cache_movimientos');
+                    if (copiaLocal) {
+                        try {
+                            const datosLocales = JSON.parse(copiaLocal);
+                            setMovimientos(datosLocales);
+                            setModoOffline(true);
+                            mostrarAlerta('Sin conexión: mostrando datos guardados en caché local', 'warning');
+                        } catch {
+                            mostrarAlerta(err.message, 'error');
+                        }
+                    } else {
+                        mostrarAlerta(err.message || 'Error de conexión', 'error');
+                    }
                 } finally {
                     setCargando(false);
                 }
             };
 
+            // Cargar movimientos y categorías cuando la sesión esté disponible
             useEffect(() => {
-                cargarMovimientos();
-            }, []);
+                if (session?.user) {
+                    cargarMovimientos();
+                    try {
+                        const keyStorage = `app_custom_categories_${session.user.id}`;
+                        const guardadas = localStorage.getItem(keyStorage) || localStorage.getItem('app_custom_categories');
+                        if (guardadas) {
+                            setCategoriasPersonalizadas(JSON.parse(guardadas));
+                        } else {
+                            setCategoriasPersonalizadas([]);
+                        }
+                    } catch {
+                        setCategoriasPersonalizadas([]);
+                    }
+                } else {
+                    setCategoriasPersonalizadas([]);
+                }
+            }, [session?.user?.id]);
 
             const mostrarAlerta = (mensaje, tipo = 'success') => {
                 setNotificacion({ mensaje, tipo });
                 setTimeout(() => setNotificacion(null), 4000);
             };
 
-            // Categorías dinámicas
+            // Iniciar Sesión con Licencia Autorizada
+            const manejarLogin = async (e) => {
+                e.preventDefault();
+                setAuthError(null);
+                setAuthProcesando(true);
+
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email: authEmail.trim(),
+                        password: authPassword
+                    });
+
+                    if (error) throw error;
+
+                    setSession(data.session);
+                    mostrarAlerta('¡Acceso verificado! Bienvenido a tu panel.');
+                    vincularRegistrosHistoricos(data.session.user.id);
+                } catch (err) {
+                    setAuthError("Credenciales no válidas o acceso no autorizado. Si acabas de adquirir tu licencia, verifica tu correo y contraseña.");
+                } finally {
+                    setAuthProcesando(false);
+                }
+            };
+
+            // Cerrar Sesión
+            const cerrarSesion = async () => {
+                if (!window.confirm("¿Estás seguro de que deseas cerrar sesión?")) return;
+                try {
+                    await supabaseClient.auth.signOut();
+                    setSession(null);
+                    setMovimientos([]);
+                    mostrarAlerta('Has cerrado sesión correctamente.');
+                } catch (err) {
+                    mostrarAlerta('Error al cerrar sesión', 'error');
+                }
+            };
+
+            // Cambiar contraseña por parte del cliente
+            const manejarCambioPassword = async (e) => {
+                e.preventDefault();
+                if (nuevaPassword.length < 6) {
+                    mostrarAlerta("La nueva contraseña debe tener al menos 6 caracteres", "error");
+                    return;
+                }
+                setCambiandoPassword(true);
+                try {
+                    const { error } = await supabaseClient.auth.updateUser({ password: nuevaPassword });
+                    if (error) throw error;
+                    mostrarAlerta("¡Tu contraseña ha sido actualizada con éxito!");
+                    setNuevaPassword('');
+                    setModalPasswordAbierto(false);
+                } catch (err) {
+                    mostrarAlerta(err.message || "Error al actualizar contraseña", "error");
+                } finally {
+                    setCambiandoPassword(false);
+                }
+            };
+
+            // Categorías dinámicas (Base + Base de Datos + Personalizadas)
             const { categoriasEgreso, categoriasIngreso } = useMemo(() => {
                 const dbEgreso = movimientos.filter(m => m.tipo?.toLowerCase() === 'egreso').map(m => m.categoria?.toLowerCase());
                 const dbIngreso = movimientos.filter(m => m.tipo?.toLowerCase() === 'ingreso').map(m => m.categoria?.toLowerCase());
+                const pers = categoriasPersonalizadas.map(c => c.toLowerCase());
                 return {
-                    categoriasEgreso: [...new Set([...BASE_EGRESOS, ...dbEgreso])].filter(Boolean).map(capitalizar).sort(),
-                    categoriasIngreso: [...new Set([...BASE_INGRESOS, ...dbIngreso])].filter(Boolean).map(capitalizar).sort()
+                    categoriasEgreso: [...new Set([...BASE_EGRESOS, ...dbEgreso, ...pers])].filter(Boolean).map(capitalizar).sort(),
+                    categoriasIngreso: [...new Set([...BASE_INGRESOS, ...dbIngreso, ...pers])].filter(Boolean).map(capitalizar).sort()
                 };
-            }, [movimientos]);
+            }, [movimientos, categoriasPersonalizadas]);
 
+            // Asignar categoría inicial al cambiar de tipo solo si no se está editando
             useEffect(() => {
-                if (tipo === 'Egreso') {
-                    setCategoria(categoriasEgreso[0] || 'Comida');
-                } else {
-                    setCategoria(categoriasIngreso[0] || 'Sueldo');
+                if (!editandoId) {
+                    if (tipo === 'Egreso') {
+                        setCategoria(categoriasEgreso[0] || 'Otros');
+                    } else {
+                        setCategoria(categoriasIngreso[0] || 'Otros');
+                    }
                 }
-            }, [tipo, categoriasEgreso, categoriasIngreso]);
+            }, [tipo, categoriasEgreso, categoriasIngreso, editandoId]);
 
             // Periodos disponibles
             const listaPeriodos = useMemo(() => {
@@ -290,6 +506,27 @@
                 });
             }, [movimientos, periodoSeleccionado, filtroTipo, filtroCategoria, busquedaTexto]);
 
+            // Reiniciar página actual al cambiar cualquier filtro
+            useEffect(() => {
+                setPaginaActual(1);
+            }, [periodoSeleccionado, filtroTipo, filtroCategoria, busquedaTexto, filasPorPagina]);
+
+            // Paginación calculada
+            const totalMovimientos = movimientosFiltrados.length;
+            const totalPaginas = filasPorPagina === 'todos' 
+                ? 1 
+                : Math.max(1, Math.ceil(totalMovimientos / Number(filasPorPagina)));
+
+            const movimientosPaginados = useMemo(() => {
+                if (filasPorPagina === 'todos') return movimientosFiltrados;
+                const tamano = Number(filasPorPagina);
+                const inicio = (paginaActual - 1) * tamano;
+                return movimientosFiltrados.slice(inicio, inicio + tamano);
+            }, [movimientosFiltrados, paginaActual, filasPorPagina]);
+
+            const indiceInicio = totalMovimientos === 0 ? 0 : (paginaActual - 1) * (filasPorPagina === 'todos' ? totalMovimientos : Number(filasPorPagina)) + 1;
+            const indiceFin = filasPorPagina === 'todos' ? totalMovimientos : Math.min(paginaActual * Number(filasPorPagina), totalMovimientos);
+
             // Totales e información de gráficos y KPIs extendidos
             const { ingresos, egresos, disponible, resumenCategorias, gastoPromedioDiario, mayorGasto, tasaAhorro } = useMemo(() => {
                 let ing = 0;
@@ -298,7 +535,6 @@
                 let maxGastoObj = null;
                 const diasConGasto = new Set();
 
-                // Para los KPIs de periodo general, calculamos sobre la base del periodo (para no desvirtuar el disponible global)
                 const basePeriodo = periodoSeleccionado === 'Consolidado Total'
                     ? movimientos
                     : movimientos.filter(m => m.fecha?.startsWith(periodoSeleccionado));
@@ -366,7 +602,27 @@
                 document.body.removeChild(link);
             };
 
-            // Guardar un nuevo movimiento en Supabase
+            // Iniciar Modo Edición
+            const iniciarEdicion = (m) => {
+                setEditandoId(m.id);
+                setTipo(m.tipo ? capitalizar(m.tipo) : 'Egreso');
+                setFecha(m.fecha ? m.fecha.split('T')[0] : new Date().toISOString().split('T')[0]);
+                setCategoria(capitalizar(m.categoria));
+                setMonto(String(m.monto || ''));
+                setDetalle(m.detalle || '');
+                setFormAbierto(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            // Cancelar Modo Edición
+            const cancelarEdicion = () => {
+                setEditandoId(null);
+                setMonto('');
+                setDetalle('');
+                setFormAbierto(false);
+            };
+
+            // Guardar o Actualizar un movimiento en Supabase
             const manejarEnvio = async (e) => {
                 e.preventDefault();
                 const montoNumerico = parseFloat(monto);
@@ -375,35 +631,41 @@
                     return;
                 }
 
-                const nuevoRegistro = {
+                const payload = {
                     fecha,
                     tipo,
-                    categoria,
+                    categoria: categoria.trim(),
                     detalle: detalle.trim(),
-                    monto: montoNumerico
+                    monto: montoNumerico,
+                    user_id: session?.user?.id
                 };
 
                 try {
-                    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos`, {
-                        method: 'POST',
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
-                        },
-                        body: JSON.stringify(nuevoRegistro)
-                    });
+                    if (editandoId) {
+                        // Actualización con Supabase Client
+                        const { error } = await supabaseClient
+                            .from('movimientos')
+                            .update(payload)
+                            .eq('id', editandoId);
 
-                    if (!res.ok) throw new Error("Error al registrar el movimiento en la nube");
+                        if (error) throw error;
+                        mostrarAlerta('¡Movimiento actualizado con éxito!');
+                        cancelarEdicion();
+                    } else {
+                        // Inserción con Supabase Client
+                        const { error } = await supabaseClient
+                            .from('movimientos')
+                            .insert([payload]);
 
-                    mostrarAlerta('¡Movimiento guardado con éxito!');
-                    setMonto('');
-                    setDetalle('');
-                    setFormAbierto(false);
+                        if (error) throw error;
+                        mostrarAlerta('¡Movimiento guardado con éxito!');
+                        setMonto('');
+                        setDetalle('');
+                        setFormAbierto(false);
+                    }
                     cargarMovimientos();
                 } catch (err) {
-                    mostrarAlerta(err.message, 'error');
+                    mostrarAlerta(err.message || 'Error al guardar movimiento', 'error');
                 }
             };
 
@@ -413,24 +675,55 @@
                 if (!confirmado) return;
 
                 try {
-                    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?id=eq.${id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`
-                        }
-                    });
+                    const { error } = await supabaseClient
+                        .from('movimientos')
+                        .delete()
+                        .eq('id', id);
 
-                    if (!res.ok) throw new Error("Error al eliminar el movimiento de la nube");
+                    if (error) throw error;
+
+                    if (editandoId === id) {
+                        cancelarEdicion();
+                    }
 
                     mostrarAlerta('Registro eliminado correctamente');
-                    cargarMovimientos(); // Refresca los gráficos y tabla
+                    cargarMovimientos();
                 } catch (err) {
-                    mostrarAlerta(err.message, 'error');
+                    mostrarAlerta(err.message || 'Error al eliminar registro', 'error');
                 }
             };
 
+            // Agregar nueva categoría personalizada
+            const agregarNuevaCategoria = (e) => {
+                e.preventDefault();
+                const limpio = nombreNuevaCat.trim();
+                if (!limpio) return;
+                const formateado = capitalizar(limpio);
+                const listaActual = tipo === 'Egreso' ? categoriasEgreso : categoriasIngreso;
+                if (listaActual.includes(formateado)) {
+                    setCategoria(formateado);
+                    setNombreNuevaCat('');
+                    setCreandoNuevaCat(false);
+                    mostrarAlerta(`La categoría "${formateado}" ya existe y fue seleccionada.`);
+                    return;
+                }
+                const nuevas = [...categoriasPersonalizadas, formateado];
+                setCategoriasPersonalizadas(nuevas);
+                try {
+                    const keyStorage = session?.user?.id ? `app_custom_categories_${session.user.id}` : 'app_custom_categories';
+                    localStorage.setItem(keyStorage, JSON.stringify(nuevas));
+                } catch (err) {
+                    console.warn(err);
+                }
+                setCategoria(formateado);
+                setNombreNuevaCat('');
+                setCreandoNuevaCat(false);
+                mostrarAlerta(`¡Categoría "${formateado}" agregada!`);
+            };
+
+            // Renderizado de gráficos con Chart.js
             useEffect(() => {
+                if (!session) return;
                 const colorTexto = isDarkMode ? '#94a3b8' : '#64748b';
                 const colorBorde = isDarkMode ? '#1e293b' : '#ffffff';
                 const colorGrid = isDarkMode ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
@@ -542,26 +835,189 @@
                     if (chartDonaInstance.current) chartDonaInstance.current.destroy();
                     if (chartBarrasInstance.current) chartBarrasInstance.current.destroy();
                 };
-            }, [resumenCategorias, isDarkMode]);
+            }, [resumenCategorias, isDarkMode, session]);
 
             const porcentajeConsumido = ingresos > 0 ? Math.min((egresos / ingresos) * 100, 100) : (egresos > 0 ? 100 : 0);
 
+            // Pantalla de Carga de Autenticación
+            if (authCargando) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-950">
+                        <div className="flex flex-col items-center space-y-4">
+                            <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 animate-bounce">
+                                <Icon name="card" className="w-8 h-8" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 animate-pulse">Verificando licencia de acceso...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            // PANTALLA DE ACCESO CON LICENCIA EXCLUSIVA (Login privado)
+            if (!session) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-slate-50 dark:bg-slate-950 relative overflow-hidden transition-colors duration-300">
+                        {/* Decoración ambiental */}
+                        <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                        <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                        {/* Botón Alternador Tema */}
+                        <div className="absolute top-5 right-5">
+                            <button
+                                onClick={() => setIsDarkMode(!isDarkMode)}
+                                className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-95"
+                                title="Cambiar tema"
+                            >
+                                <Icon name={isDarkMode ? "sun" : "moon"} className="w-5 h-5 text-amber-500" />
+                            </button>
+                        </div>
+
+                        <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none space-y-6 relative z-10 transition-colors">
+                            {/* Logo y Encabezado Comercial */}
+                            <div className="text-center space-y-2">
+                                <div className="inline-flex w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-100 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 items-center justify-center shadow-inner mb-1">
+                                    <Icon name="card" className="w-8 h-8" />
+                                </div>
+                                <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+                                    Mi Control Financiero
+                                </h1>
+                                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                                    Acceso Privado para Usuarios Autorizados
+                                </p>
+                            </div>
+
+                            {/* Mensajes de Alerta */}
+                            {authError && (
+                                <div className="p-3.5 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 flex items-start space-x-2">
+                                    <span>⚠️</span>
+                                    <span>{authError}</span>
+                                </div>
+                            )}
+
+                            {/* Formulario de Login */}
+                            <form onSubmit={manejarLogin} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">
+                                        Correo Autorizado
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="email"
+                                            value={authEmail}
+                                            onChange={(e) => setAuthEmail(e.target.value)}
+                                            placeholder="tucorreo@ejemplo.com"
+                                            required
+                                            className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100 transition"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                            <Icon name="mail" className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">
+                                        Contraseña
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="password"
+                                            value={authPassword}
+                                            onChange={(e) => setAuthPassword(e.target.value)}
+                                            placeholder="Ingresa tu contraseña"
+                                            required
+                                            className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100 transition"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                            <Icon name="lock" className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={authProcesando}
+                                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold rounded-xl text-sm shadow-md shadow-blue-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                                >
+                                    {authProcesando ? (
+                                        <>
+                                            <Icon name="refresh" className="w-4 h-4 animate-spin" />
+                                            <span>Validando credenciales...</span>
+                                        </>
+                                    ) : (
+                                        <span>Ingresar a Mi Control Financiero</span>
+                                    )}
+                                </button>
+                            </form>
+
+                            {/* Tarjeta de Venta de Licencias (WhatsApp CTA) */}
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-emerald-500/10 border border-emerald-500/20 dark:border-emerald-500/30 text-center space-y-2.5">
+                                    <div className="flex items-center justify-center space-x-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                                        <span>⭐ Licencia de Pago Único</span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                                        ¿Aún no tienes tu acceso? Adquiere tu licencia única para controlar tus finanzas de por vida sin mensualidades.
+                                    </p>
+                                    <a
+                                        href={`https://wa.me/${WHATSAPP_VENTAS}?text=${encodeURIComponent('¡Hola! Deseo adquirir mi licencia de por vida para Mi Control Financiero.')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center space-x-2 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold rounded-xl text-xs shadow-sm transition"
+                                    >
+                                        <span>💬 Solicitar Licencia por WhatsApp</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // PANTALLA PRINCIPAL DE LA APLICACIÓN (con sesión iniciada)
             return (
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
                     
-                    {/* Header Principal */}
-                    <header className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-sm flex items-center justify-between transition-colors duration-300">
+                    {/* Header Principal con Datos del Usuario, Cambio de Clave y Logout */}
+                    <header className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors duration-300">
                         <div className="flex items-center space-x-3.5">
-                            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-inner">
+                            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-inner flex-shrink-0">
                                 <Icon name="card" className="w-6 h-6" />
                             </div>
                             <div>
                                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">Mi Control Financiero</h1>
-                                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">Gestión sincronizada con Supabase</p>
+                                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">Licencia Activa y Sincronizada</p>
                             </div>
                         </div>
 
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 self-end sm:self-auto">
+                            {/* Insignia de Usuario Logueado */}
+                            <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
+                                <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
+                                    {(session.user?.email || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <span className="max-w-[130px] truncate" title={session.user?.email}>
+                                    {session.user?.email}
+                                </span>
+                            </div>
+
+                            {/* Botón para Cambiar Contraseña (para ti o tus clientes) */}
+                            <button
+                                onClick={() => setModalPasswordAbierto(true)}
+                                className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition active:scale-95 border border-slate-200/50 dark:border-slate-700/50"
+                                title="Cambiar mi contraseña"
+                            >
+                                <Icon name="key" className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </button>
+
+                            {/* Indicador de Conexión Offline */}
+                            {(!estaOnline || modoOffline) && (
+                                <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 rounded-xl text-xs font-bold" title="Sin conexión a internet. Mostrando copia en caché local">
+                                    <Icon name="wifiOff" className="w-4 h-4 text-amber-500" />
+                                    <span className="hidden sm:inline">Offline</span>
+                                </div>
+                            )}
+
                             {/* Botón Alternador Tema */}
                             <button
                                 onClick={() => setIsDarkMode(!isDarkMode)}
@@ -579,34 +1035,123 @@
                             >
                                 <Icon name="refresh" className="w-5 h-5" />
                             </button>
+
+                            {/* Botón Cerrar Sesión */}
+                            <button
+                                onClick={cerrarSesion}
+                                className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition active:scale-95 border border-slate-200/50 dark:border-slate-700/50"
+                                title="Cerrar sesión"
+                            >
+                                <Icon name="logout" className="w-5 h-5" />
+                            </button>
                         </div>
                     </header>
+
+                    {/* Modal para Cambiar Contraseña */}
+                    {modalPasswordAbierto && (
+                        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                                        <Icon name="key" className="w-5 h-5 text-blue-600" />
+                                        <span>Cambiar Mi Contraseña</span>
+                                    </h3>
+                                    <button onClick={() => setModalPasswordAbierto(false)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    Ingresa tu nueva contraseña privada. Debe tener un mínimo de 6 caracteres.
+                                </p>
+                                <form onSubmit={manejarCambioPassword} className="space-y-4">
+                                    <input
+                                        type="password"
+                                        value={nuevaPassword}
+                                        onChange={(e) => setNuevaPassword(e.target.value)}
+                                        placeholder="Nueva contraseña secreta"
+                                        required
+                                        minLength="6"
+                                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100"
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setModalPasswordAbierto(false)}
+                                            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={cambiandoPassword}
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+                                        >
+                                            {cambiandoPassword ? 'Guardando...' : 'Actualizar Clave'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Alertas */}
                     {notificacion && (
                         <div className={`p-4 rounded-xl text-sm font-semibold border flex items-center justify-between transition-all duration-300 ${
                             notificacion.tipo === 'error'
                                 ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/50'
-                                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50'
+                                : notificacion.tipo === 'warning'
+                                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50'
                         }`}>
                             <span>{notificacion.mensaje}</span>
                             <button onClick={() => setNotificacion(null)} className="text-xs uppercase font-bold opacity-60 hover:opacity-100">Cerrar</button>
                         </div>
                     )}
 
-                    {/* Formulario Expandible */}
-                    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden transition-colors duration-300">
+                    {/* Formulario Expandible (Registro / Edición) */}
+                    <section className={`bg-white dark:bg-slate-900 border ${
+                        editandoId 
+                            ? 'border-amber-400 dark:border-amber-500/80 ring-2 ring-amber-400/20 shadow-md' 
+                            : 'border-slate-200 dark:border-slate-800/80 shadow-sm'
+                    } rounded-2xl overflow-hidden transition-all duration-300`}>
                         <button
-                            onClick={() => setFormAbierto(!formAbierto)}
+                            onClick={() => {
+                                if (editandoId) {
+                                    cancelarEdicion();
+                                } else {
+                                    setFormAbierto(!formAbierto);
+                                }
+                            }}
                             className="w-full p-5 flex items-center justify-between text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                         >
                             <div className="flex items-center space-x-2.5">
-                                <span className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                                    <Icon name="plus" className="w-4 h-4" />
+                                <span className={`p-1.5 rounded-lg ${
+                                    editandoId 
+                                        ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400' 
+                                        : 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
+                                }`}>
+                                    <Icon name={editandoId ? "edit" : "plus"} className="w-4 h-4" />
                                 </span>
-                                <span>Ingresar Nuevo Movimiento</span>
+                                <div className="flex items-center gap-2">
+                                    <span>{editandoId ? 'Editar Movimiento' : 'Ingresar Nuevo Movimiento'}</span>
+                                    {editandoId && (
+                                        <span className="text-xs bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-bold px-2 py-0.5 rounded-full">
+                                            Modo edición activo
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                            <Icon name={formAbierto ? "chevronUp" : "chevronDown"} className="w-5 h-5 text-slate-400" />
+                            <div className="flex items-center space-x-2">
+                                {editandoId && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); cancelarEdicion(); }}
+                                        className="text-xs text-rose-500 hover:text-rose-700 font-bold px-2.5 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                                    >
+                                        Cancelar
+                                    </button>
+                                )}
+                                <Icon name={formAbierto ? "chevronUp" : "chevronDown"} className="w-5 h-5 text-slate-400" />
+                            </div>
                         </button>
 
                         {formAbierto && (
@@ -646,16 +1191,54 @@
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">Categoría</label>
-                                        <select
-                                            value={categoria}
-                                            onChange={(e) => setCategoria(e.target.value)}
-                                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100 transition"
-                                        >
-                                            {(tipo === 'Egreso' ? categoriasEgreso : categoriasIngreso).map(c => (
-                                                <option key={c} value={c}>{c}</option>
-                                            ))}
-                                        </select>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Categoría</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCreandoNuevaCat(!creandoNuevaCat)}
+                                                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-1"
+                                            >
+                                                <Icon name="plus" className="w-3 h-3" />
+                                                <span>+ Nueva categoría</span>
+                                            </button>
+                                        </div>
+
+                                        {creandoNuevaCat ? (
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={nombreNuevaCat}
+                                                    onChange={(e) => setNombreNuevaCat(e.target.value)}
+                                                    placeholder="Nombre de categoría..."
+                                                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-blue-400 dark:border-blue-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100"
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={agregarNuevaCategoria}
+                                                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition active:scale-95 shadow-sm"
+                                                >
+                                                    Agregar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCreandoNuevaCat(false)}
+                                                    className="px-2.5 py-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-xs font-bold"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={categoria}
+                                                onChange={(e) => setCategoria(e.target.value)}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100 transition"
+                                            >
+                                                {(tipo === 'Egreso' ? categoriasEgreso : categoriasIngreso).map(c => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">Monto (S/.)</label>
@@ -682,12 +1265,23 @@
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end pt-2">
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    {editandoId && (
+                                        <button
+                                            type="button"
+                                            onClick={cancelarEdicion}
+                                            className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-sm transition"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    )}
                                     <button
                                         type="submit"
-                                        className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-sm transition"
+                                        className={`w-full sm:w-auto px-6 py-2.5 text-white font-semibold rounded-xl text-sm shadow-sm transition active:scale-95 ${
+                                            editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'
+                                        }`}
                                     >
-                                        Guardar en el acto
+                                        {editandoId ? 'Actualizar Movimiento' : 'Guardar en el acto'}
                                     </button>
                                 </div>
                             </form>
@@ -823,7 +1417,7 @@
                         </section>
                     )}
 
-                    {/* Detalle Operativo */}
+                    {/* Detalle Operativo (Tabla + Segmentadores + Paginación) */}
                     <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden transition-colors">
                         <div className="p-5 border-b border-slate-100 dark:border-slate-800 space-y-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -892,6 +1486,7 @@
                             </div>
                         </div>
 
+                        {/* Tabla de Movimientos */}
                         <div className="overflow-x-auto custom-scroll">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-100 dark:border-slate-800">
@@ -905,8 +1500,8 @@
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {movimientosFiltrados.slice(0, 50).map((m, idx) => (
-                                        <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                                    {movimientosPaginados.map((m) => (
+                                        <tr key={m.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
                                             <td className="px-5 py-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400 font-medium">
                                                 {formatearFecha(m.fecha)}
                                             </td>
@@ -922,14 +1517,23 @@
                                             <td className="px-5 py-3.5 font-semibold text-slate-700 dark:text-slate-200">{capitalizar(m.categoria)}</td>
                                             <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400 max-w-[200px] truncate" title={m.detalle}>{m.detalle || '-'}</td>
                                             <td className="px-5 py-3.5 text-right font-bold text-slate-800 dark:text-slate-100">{formatearMoneda(m.monto)}</td>
-                                            <td className="px-5 py-3.5 text-center">
-                                                <button
-                                                    onClick={() => eliminarMovimiento(m.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
-                                                    title="Eliminar registro"
-                                                >
-                                                    <Icon name="trash" className="w-4 h-4" />
-                                                </button>
+                                            <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                                                <div className="flex items-center justify-center space-x-1">
+                                                    <button
+                                                        onClick={() => iniciarEdicion(m)}
+                                                        className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors"
+                                                        title="Editar registro"
+                                                    >
+                                                        <Icon name="edit" className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => eliminarMovimiento(m.id)}
+                                                        className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                                                        title="Eliminar registro"
+                                                    >
+                                                        <Icon name="trash" className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -941,6 +1545,58 @@
                                 </div>
                             )}
                         </div>
+
+                        {/* Barra de Paginación */}
+                        {totalMovimientos > 0 && (
+                            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                <div className="flex items-center gap-3">
+                                    <span>
+                                        Mostrando <b className="text-slate-700 dark:text-slate-200">{indiceInicio}</b> - <b className="text-slate-700 dark:text-slate-200">{indiceFin}</b> de <b className="text-slate-700 dark:text-slate-200">{totalMovimientos}</b>
+                                    </span>
+                                    <div className="flex items-center space-x-1.5 pl-2 border-l border-slate-200 dark:border-slate-700">
+                                        <span>Filas:</span>
+                                        <select
+                                            value={filasPorPagina}
+                                            onChange={(e) => {
+                                                setFilasPorPagina(e.target.value === 'todos' ? 'todos' : Number(e.target.value));
+                                                setPaginaActual(1);
+                                            }}
+                                            className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-none rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                        >
+                                            <option value="15">15</option>
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                            <option value="todos">Todos</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {filasPorPagina !== 'todos' && totalPaginas > 1 && (
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                                            disabled={paginaActual === 1}
+                                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center"
+                                            title="Página anterior"
+                                        >
+                                            <Icon name="chevronLeft" className="w-4 h-4" />
+                                        </button>
+                                        <span className="px-2">
+                                            Página <b className="text-slate-800 dark:text-slate-100">{paginaActual}</b> de <b className="text-slate-800 dark:text-slate-100">{totalPaginas}</b>
+                                        </span>
+                                        <button
+                                            onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                                            disabled={paginaActual >= totalPaginas}
+                                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center justify-center"
+                                            title="Página siguiente"
+                                        >
+                                            <Icon name="chevronRight" className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </section>
 
                 </div>
@@ -950,10 +1606,14 @@
         // Montar la aplicación
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 
-        // Registro de Service Worker para PWA (si existe sw.js)
+        // Registro de Service Worker para PWA y modo Offline
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
+                navigator.serviceWorker.register('./sw.js').then((reg) => {
+                    console.log('Service Worker registrado:', reg.scope);
+                }).catch((err) => {
+                    console.log('Aviso al registrar Service Worker:', err);
+                });
             });
         }
     </script>
