@@ -122,7 +122,8 @@
                 search: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
                 download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
                 filter: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />,
-                flame: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 010 11.314z" />
+                flame: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 010 11.314z" />,
+                trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             };
             return (
                 <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -401,6 +402,29 @@
                     setDetalle('');
                     setFormAbierto(false);
                     cargarMovimientos();
+                } catch (err) {
+                    mostrarAlerta(err.message, 'error');
+                }
+            };
+
+            // Eliminar un registro en Supabase
+            const eliminarMovimiento = async (id) => {
+                const confirmado = window.confirm("¿Estás seguro de que deseas eliminar este movimiento de forma permanente?");
+                if (!confirmado) return;
+
+                try {
+                    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos?id=eq.${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        }
+                    });
+
+                    if (!res.ok) throw new Error("Error al eliminar el movimiento de la nube");
+
+                    mostrarAlerta('Registro eliminado correctamente');
+                    cargarMovimientos(); // Refresca los gráficos y tabla
                 } catch (err) {
                     mostrarAlerta(err.message, 'error');
                 }
@@ -877,6 +901,7 @@
                                         <th className="px-5 py-3.5">Categoría</th>
                                         <th className="px-5 py-3.5">Detalle</th>
                                         <th className="px-5 py-3.5 text-right">Monto</th>
+                                        <th className="px-5 py-3.5 text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -897,6 +922,15 @@
                                             <td className="px-5 py-3.5 font-semibold text-slate-700 dark:text-slate-200">{capitalizar(m.categoria)}</td>
                                             <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400 max-w-[200px] truncate" title={m.detalle}>{m.detalle || '-'}</td>
                                             <td className="px-5 py-3.5 text-right font-bold text-slate-800 dark:text-slate-100">{formatearMoneda(m.monto)}</td>
+                                            <td className="px-5 py-3.5 text-center">
+                                                <button
+                                                    onClick={() => eliminarMovimiento(m.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                                                    title="Eliminar registro"
+                                                >
+                                                    <Icon name="trash" className="w-4 h-4" />
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
