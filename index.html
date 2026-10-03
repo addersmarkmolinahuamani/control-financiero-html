@@ -253,9 +253,6 @@
                 supabaseClient.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
                     setAuthCargando(false);
-                    if (session?.user) {
-                        vincularRegistrosHistoricos(session.user.id);
-                    }
                 }).catch(() => {
                     setAuthCargando(false);
                 });
@@ -263,41 +260,20 @@
                 const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, newSession) => {
                     setSession(newSession);
                     setAuthCargando(false);
-                    if (newSession?.user) {
-                        vincularRegistrosHistoricos(newSession.user.id);
-                    }
                 });
 
                 return () => subscription?.unsubscribe?.();
             }, []);
 
-            // Vincular automáticamente movimientos huérfanos anteriores al usuario logueado
-            const vincularRegistrosHistoricos = async (userId) => {
-                if (!supabaseClient || !userId) return;
-                try {
-                    const { error } = await supabaseClient
-                        .from('movimientos')
-                        .update({ user_id: userId })
-                        .is('user_id', null);
-
-                    if (error) {
-                        console.warn("Nota al vincular movimientos huérfanos:", error.message);
-                    } else {
-                        cargarMovimientos();
-                    }
-                } catch (err) {
-                    console.warn("Error en vinculación:", err);
-                }
-            };
-
-            // Carga de datos de Supabase para el usuario autenticado
+            // Carga de datos de Supabase estrictamente para el usuario autenticado
             const cargarMovimientos = async () => {
-                if (!supabaseClient || !session?.user) return;
+                if (!supabaseClient || !session?.user?.id) return;
                 setCargando(true);
                 try {
                     const { data, error } = await supabaseClient
                         .from('movimientos')
                         .select('*')
+                        .eq('user_id', session.user.id)
                         .order('fecha', { ascending: false });
 
                     if (error) throw error;
@@ -319,9 +295,9 @@
                         setPeriodoSeleccionado(mesActual);
                     }
                 } catch (err) {
-                    // Fallback a localStorage si falla la conexión (offline)
-                    const claveUsuario = `app_cache_movimientos_${session?.user?.id || 'default'}`;
-                    const copiaLocal = localStorage.getItem(claveUsuario) || localStorage.getItem('app_cache_movimientos');
+                    // Fallback a localStorage si falla la conexión (offline) únicamente para este usuario
+                    const claveUsuario = `app_cache_movimientos_${session?.user?.id}`;
+                    const copiaLocal = session?.user?.id ? localStorage.getItem(claveUsuario) : null;
                     if (copiaLocal) {
                         try {
                             const datosLocales = JSON.parse(copiaLocal);
@@ -332,6 +308,7 @@
                             mostrarAlerta(err.message, 'error');
                         }
                     } else {
+                        setMovimientos([]);
                         mostrarAlerta(err.message || 'Error de conexión', 'error');
                     }
                 } finally {
@@ -646,7 +623,8 @@
                         const { error } = await supabaseClient
                             .from('movimientos')
                             .update(payload)
-                            .eq('id', editandoId);
+                            .eq('id', editandoId)
+                            .eq('user_id', session?.user?.id);
 
                         if (error) throw error;
                         mostrarAlerta('¡Movimiento actualizado con éxito!');
@@ -678,7 +656,8 @@
                     const { error } = await supabaseClient
                         .from('movimientos')
                         .delete()
-                        .eq('id', id);
+                        .eq('id', id)
+                        .eq('user_id', session?.user?.id);
 
                     if (error) throw error;
 
