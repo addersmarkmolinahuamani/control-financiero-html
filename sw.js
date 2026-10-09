@@ -1,5 +1,5 @@
 // Service Worker para "Mi Control Financiero"
-const CACHE_NAME = 'finanzas-pwa-v7';
+const CACHE_NAME = 'finanzas-pwa-v8';
 
 const ASSETS_TO_CACHE = [
     './',
