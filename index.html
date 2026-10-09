@@ -485,48 +485,59 @@
                 }
             };
 
-            // Autorizar y crear un nuevo cliente con licencia
+            // Autorizar o vincular un cliente con licencia
             const manejarAutorizarCliente = async (e) => {
                 e.preventDefault();
                 const emailLimpio = nuevoClienteEmail.trim().toLowerCase();
                 const passLimpio = nuevoClientePassword.trim();
                 const nombreLimpio = nuevoClienteNombre.trim() || 'Cliente';
 
-                if (!emailLimpio || !passLimpio) {
-                    mostrarAlerta("Por favor completa el correo y la contraseña inicial", "error");
-                    return;
-                }
-                if (passLimpio.length < 6) {
-                    mostrarAlerta("La contraseña inicial debe tener al menos 6 caracteres", "error");
+                if (!emailLimpio) {
+                    mostrarAlerta("Por favor escribe el correo del cliente", "error");
                     return;
                 }
 
                 setCreandoCliente(true);
                 try {
-                    let creadoEnAuth = false;
+                    let vinculadoExitoso = false;
                     let nuevoUserId = null;
 
-                    // 1. Intentar crear vía función RPC en Postgres si está instalada en Supabase
+                    // 1. Intentar vía función RPC en Postgres
                     try {
                         const { data: rpcData, error: rpcError } = await supabaseClient.rpc('autorizar_nuevo_cliente', {
                             p_email: emailLimpio,
-                            p_password: passLimpio,
+                            p_password: passLimpio || '',
                             p_nombre: nombreLimpio
                         });
 
                         if (!rpcError && rpcData?.success) {
-                            creadoEnAuth = true;
+                            vinculadoExitoso = true;
                             nuevoUserId = rpcData.user_id;
-                        } else if (rpcError?.message?.includes('ya se encuentra registrado')) {
-                            creadoEnAuth = true;
-                            mostrarAlerta(`El usuario ya existía en Supabase y ha sido vinculado a tu lista.`);
+                            if (rpcData.already_exists) {
+                                mostrarAlerta(`¡Usuario existente (${emailLimpio}) vinculado con éxito!`);
+                            } else {
+                                mostrarAlerta(`¡Cliente ${nombreLimpio} autorizado con éxito!`);
+                            }
+                        } else if (rpcError) {
+                            if (rpcError.message?.includes('contraseña inicial')) {
+                                throw new Error("Este correo no existe en el sistema. Para crearlo como nuevo cliente, escribe una contraseña inicial (mínimo 6 caracteres).");
+                            } else if (rpcError.message?.includes('ya se encuentra registrado')) {
+                                // Versión anterior de la función RPC: el usuario ya existía en auth.users
+                                vinculadoExitoso = true;
+                                mostrarAlerta(`¡Usuario ${emailLimpio} identificado y vinculado!`);
+                            } else {
+                                console.log("Aviso RPC:", rpcError);
+                            }
                         }
                     } catch (rpcErr) {
-                        console.log("RPC no disponible:", rpcErr);
+                        if (rpcErr.message?.includes('contraseña inicial')) {
+                            throw rpcErr;
+                        }
+                        console.log("Intentando fallback:", rpcErr);
                     }
 
-                    // 2. Si no fue por RPC, intentar crear usuario vía Auth signUp aislado (sin tocar sesión del admin)
-                    if (!creadoEnAuth) {
+                    // 2. Si no fue completado por RPC y hay contraseña, intentar signUp aislado
+                    if (!vinculadoExitoso && passLimpio) {
                         const authAdminClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
                             auth: {
                                 persistSession: false,
@@ -550,20 +561,21 @@
 
                         if (signUpError) {
                             if (signUpError.message?.toLowerCase().includes('already registered')) {
-                                creadoEnAuth = true;
-                                mostrarAlerta(`El usuario ya existía en el sistema y ha sido incorporado a tu lista.`);
+                                vinculadoExitoso = true;
+                                mostrarAlerta(`¡Usuario ${emailLimpio} ya registrado e incorporado a tu lista!`);
                             } else if (signUpError.message?.includes('Signups not allowed') || signUpError.code === 'signup_disabled') {
-                                throw new Error("Para autorizar clientes desde la app: en Supabase -> Authentication -> Providers -> Email activa 'Allow new users to sign up' (o ejecuta supabase_setup.sql en SQL Editor).");
+                                throw new Error("Para autorizar nuevos clientes desde la app: en Supabase -> Authentication activa los registros o ejecuta supabase_setup.sql actualizado.");
                             } else {
                                 throw signUpError;
                             }
                         } else {
                             nuevoUserId = signUpData?.user?.id;
-                            creadoEnAuth = true;
+                            vinculadoExitoso = true;
+                            mostrarAlerta(`¡Cliente ${nombreLimpio} autorizado con éxito!`);
                         }
                     }
 
-                    // 3. Registrar el cliente en la tabla clientes de Supabase
+                    // 3. Registrar o actualizar en la tabla clientes de Supabase
                     const nuevoClienteObj = {
                         id: nuevoUserId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
                         email: emailLimpio,
@@ -574,9 +586,12 @@
                     };
 
                     try {
-                        await supabaseClient.from('clientes').insert([nuevoClienteObj]);
+                        const { error: errUpsert } = await supabaseClient
+                            .from('clientes')
+                            .upsert([nuevoClienteObj], { onConflict: 'email' });
+                        if (errUpsert) console.warn("Aviso al guardar en clientes:", errUpsert);
                     } catch (errDb) {
-                        console.warn("Tabla 'clientes' no accesible directamente:", errDb);
+                        console.warn("Tabla clientes offline/fallback:", errDb);
                     }
 
                     // Actualizar estado local y persistir en localStorage
@@ -584,16 +599,20 @@
                     setClientes(listaActualizada);
                     localStorage.setItem('app_clientes_admin', JSON.stringify(listaActualizada));
 
-                    mostrarAlerta(`¡Cliente ${nombreLimpio} autorizado con éxito!`);
+                    if (!vinculadoExitoso && !passLimpio) {
+                        mostrarAlerta(`¡Usuario ${emailLimpio} agregado a tu lista de clientes autorizados!`);
+                    }
+
                     setNuevoClienteEmail('');
                     setNuevoClienteNombre('');
                     setNuevoClientePassword('');
                 } catch (err) {
-                    mostrarAlerta(err.message || "Error al autorizar cliente", "error");
+                    mostrarAlerta(err.message || "Error al procesar cliente", "error");
                 } finally {
                     setCreandoCliente(false);
                 }
             };
+
 
             // Eliminar o desvincular un cliente de la lista de licencias
             const eliminarCliente = async (emailTarget) => {
@@ -1387,15 +1406,13 @@
 
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                                                    Contraseña Inicial <span className="text-rose-500">*</span>
+                                                    Contraseña Inicial <span className="text-slate-400 font-normal">(opcional si ya existe en Supabase)</span>
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={nuevoClientePassword}
                                                     onChange={(e) => setNuevoClientePassword(e.target.value)}
-                                                    placeholder="123456"
-                                                    required
-                                                    minLength="6"
+                                                    placeholder="123456 (dejar vacío si ya tiene cuenta)"
                                                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-slate-100 placeholder-slate-400 transition font-mono"
                                                 />
                                             </div>
